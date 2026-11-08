@@ -1,0 +1,12 @@
+{
+  "domain": "heating_controller_history",
+  "name": "Heating Controller History Bridge",
+  "version": "1.0.1",
+  "documentation": "https://www.home-assistant.io/integrations/history/",
+  "dependencies": [
+    "recorder"
+  ],
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "local_push"
+}

@@ -40,5 +40,27 @@ jobs:
           wifi_password: "ci-validation-password"
           EOF
 
+      - name: Validate Home Assistant integration files
+        run: |
+          python -m compileall -q custom_components/heating_controller_history
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+
+          component = Path("custom_components/heating_controller_history")
+          manifest = json.loads((component / "manifest.json").read_text())
+          assert manifest["domain"] == "heating_controller_history"
+          assert manifest["name"] == "Heating Controller History Bridge"
+
+          services = yaml.safe_load((component / "services.yaml").read_text())
+          assert "get_climate_history" in services
+
+          package = yaml.safe_load(Path("packages/heating_controller_history.yaml").read_text())
+          assert package == {"heating_controller_history": {}}
+
+          print("Home Assistant integration files are valid.")
+          PY
+
       - name: Validate ESPHome configuration
         run: esphome config display-1.yaml
