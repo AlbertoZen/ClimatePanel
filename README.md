@@ -12,6 +12,27 @@ Source repository for the Heating Controller display firmware and its companion 
 
 Secrets are deliberately not stored in this repository. The active Home Assistant installation keeps its credentials in `/config/esphome/secrets.yaml`.
 
+## Climate entity configuration
+
+The display supports **2, 3 or 4 climate entities**. Set `climate_count` in the substitutions at the top of `display-1.yaml`:
+
+| `climate_count` | Selectable slots |
+|---|---|
+| `"2"` | Master and Kitchen |
+| `"3"` | Master, Kitchen and Bedroom (default) |
+| `"4"` | Master, Kitchen, Bedroom and Climate 4 |
+
+The Master, Kitchen and Bedroom slots use their existing substitutions:
+- `master_climate_entity` and `master_humidity_entity`
+- `kitchen_climate_entity` and `kitchen_humidity_entity`
+- `bedroom_climate_entity` and `bedroom_humidity_entity`
+
+For a fourth climate, set `climate_count: "4"`, then configure `fourth_climate_entity` and, optionally, `fourth_humidity_entity`. The fourth slot's displayed name comes from the climate entity's Home Assistant `friendly_name` attribute. Its icon is a generic thermostat.
+
+When reducing the configured count, the display hides the unavailable navigation slot and resets a restored selection to Master when necessary. The screensaver always shows indoor temperature and humidity from the Master climate/humidity sensors, regardless of the currently selected room.
+
+All defined slot entities remain subscribed even when a slot is outside the selected count; only the selectable room count changes. Use `sensor.none` for any optional humidity sensor you do not have.
+
 ## Heating Controller History integration
 
 The display requests the history action:
