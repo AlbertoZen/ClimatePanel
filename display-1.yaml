@@ -9,11 +9,11 @@ substitutions:
   # Set each room's humidity entity here. Use sensor.none when a room has no sensor.
   master_humidity_entity: "sensor.living_room_sensor_humidity"
   kitchen_humidity_entity: "sensor.none"
-  bedroom_humidity_entity: "sensor.none"
+  bedroom_humidity_entity: "sensor.bedroom_sensor_humidity"
   # Optional outdoor temperature sensor. Leave as sensor.none to hide it.
   outside_temperature_entity: "sensor.none"
   ui_version: "1.5"
-  ui_revision: "62"
+  ui_revision: "63"
 
 esphome:
   name: display-1
