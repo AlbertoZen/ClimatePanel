@@ -50,10 +50,10 @@ text = log_path.read_text(errors="replace")
 for line in secrets_path.read_text(errors="replace").splitlines():
     if ":" not in line or line.lstrip().startswith("#"):
         continue
-    value = line.split(":", 1)[1].strip().strip("\\"'")
+    value = line.split(":", 1)[1].strip().strip("\"'")
     if len(value) >= 4:
         text = text.replace(value, "[REDACTED]")
-print("\\n".join(text.splitlines()[-45:]))
+print("\n".join(text.splitlines()[-45:]))
 PY
 }
 
@@ -89,7 +89,7 @@ git -C "$REPO" pull --ff-only origin main
 echo
 echo "2. Checking local secrets..."
 for secret in display_1__encryption_password wifi_ssid wifi_password; do
-  grep -Eq "^''$secret''[[:space:]]*:" "$SECRETS" || fail "Required local secret is missing: $secret"
+  grep -Eq "^\${secret}[[:space:]]*:" "$SECRETS" || fail "Required local secret is missing: $secret"
   echo "  OK: $secret"
 done
 
