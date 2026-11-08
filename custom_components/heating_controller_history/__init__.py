@@ -1,7 +1,7 @@
-"""Expose Recorder climate history as a response-capable Home Assistant action.
+"""Heating Controller integration.
 
-The ESPHome display calls this service over the encrypted Native API. No REST
-endpoint or Home Assistant access token is used.
+Provides dynamic climate configuration and Recorder history to the ESPHome
+thermostat display over the encrypted Native API response mechanism.
 """
 
 from __future__ import annotations
@@ -14,33 +14,33 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
 DOMAIN = "heating_controller_history"
 _LOGGER = logging.getLogger(__name__)
+
 SERVICE_GET_CLIMATE_HISTORY = "get_climate_history"
+SERVICE_GET_DISPLAY_DATA = "get_display_data"
 POINT_COUNT = 288
 
-# This integration is configured from YAML with no options.
-# Home Assistant requires a CONFIG_SCHEMA for integrations defining async_setup().
-CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
-
-SERVICE_SCHEMA = vol.Schema(
+HISTORY_SERVICE_SCHEMA = vol.Schema(
     {
-        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("entity_id"): vol.All(str, vol.Length(min=1)),
         vol.Optional("period_hours", default=24): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=24)
         ),
     }
 )
 
+DISPLAY_SERVICE_SCHEMA = vol.Schema({})
+
 
 def _number(value: Any) -> float | None:
-    """Convert a Recorder attribute to a finite float, if possible."""
+    """Convert a state or Recorder attribute to a finite float."""
     try:
         result = float(value)
     except (TypeError, ValueError):
@@ -54,14 +54,81 @@ def _state_attributes(state: Any) -> dict[str, Any]:
     return dict(attributes) if attributes is not None else {}
 
 
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
-    """Register the Recorder history action."""
-    if DOMAIN not in config:
-        return True
+def _entry_settings(entry: ConfigEntry) -> dict[str, Any]:
+    """Return the latest editable settings, falling back to initial setup data."""
+    return dict(entry.options or entry.data)
 
-    _LOGGER.info("Setting up Heating Controller History bridge")
+
+def _climate_payload(hass: HomeAssistant, room: dict[str, Any]) -> dict[str, Any]:
+    """Build the current display payload for one configured room."""
+    entity_id = str(room["climate_entity"])
+    climate_state = hass.states.get(entity_id)
+    attributes = _state_attributes(climate_state)
+
+    humidity_value = None
+    humidity_entity = room.get("humidity_entity")
+    if humidity_entity:
+        humidity_state = hass.states.get(str(humidity_entity))
+        if humidity_state is not None:
+            humidity_value = _number(humidity_state.state)
+
+    supported_modes = attributes.get("hvac_modes", [])
+    if not isinstance(supported_modes, (list, tuple)):
+        supported_modes = []
+
+    return {
+        "entity_id": entity_id,
+        "name": attributes.get("friendly_name") or entity_id.split(".", 1)[-1],
+        "current_temperature": _number(attributes.get("current_temperature")),
+        "target_temperature": _number(attributes.get("temperature")),
+        "target_temp_low": _number(attributes.get("target_temp_low")),
+        "target_temp_high": _number(attributes.get("target_temp_high")),
+        "humidity": humidity_value,
+        "supported_modes": [str(mode) for mode in supported_modes],
+        "hvac_mode": str(climate_state.state) if climate_state is not None else "",
+        "hvac_action": str(attributes.get("hvac_action", "")),
+    }
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up the Heating Controller services for one config entry."""
+    _LOGGER.info("Setting up Heating Controller")
+
+    async def async_get_display_data(_call: ServiceCall) -> dict[str, Any]:
+        """Return the current configured rooms and live entity states."""
+        settings = _entry_settings(entry)
+        room_count = int(settings.get("room_count", 3))
+        configured_rooms = settings.get("rooms", [])
+
+        if room_count < 2 or room_count > 4 or len(configured_rooms) < room_count:
+            raise HomeAssistantError(
+                "Heating Controller room configuration is incomplete"
+            )
+
+        rooms: list[dict[str, Any]] = []
+        for room in configured_rooms[:room_count]:
+            climate_entity = room.get("climate_entity")
+            if not climate_entity:
+                raise HomeAssistantError(
+                    "Every enabled room must have a climate entity selected"
+                )
+            rooms.append(_climate_payload(hass, room))
+
+        outside_temperature = None
+        outside_entity = settings.get("outside_temperature_entity")
+        if outside_entity:
+            outside_state = hass.states.get(str(outside_entity))
+            if outside_state is not None:
+                outside_temperature = _number(outside_state.state)
+
+        return {
+            "room_count": room_count,
+            "rooms": rooms,
+            "outside_temperature": outside_temperature,
+        }
 
     async def async_get_climate_history(call: ServiceCall) -> dict[str, Any]:
+        """Return evenly sampled climate history from Recorder."""
         entity_id = call.data["entity_id"]
         _LOGGER.debug("History request received for %s", entity_id)
         if not entity_id.startswith("climate."):
@@ -74,9 +141,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         end_time = dt_util.utcnow()
         start_time = end_time - timedelta(hours=period_hours)
 
-        # The Recorder query is synchronous and must run in Home Assistant's
-        # executor, not on the event loop. Request full attributes and all state
-        # updates so current_temperature, setpoint and hvac_action are retained.
+        # Recorder queries are synchronous and must run in Home Assistant's
+        # executor, not on the event loop.
         query = partial(
             get_significant_states,
             hass,
@@ -93,8 +159,6 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         states = list(states_by_entity.get(entity_id, []))
         states.sort(key=lambda item: item.last_updated)
 
-        # Build an evenly spaced, step-held graph. For a 24-hour period this is
-        # one point every five minutes, matching the existing 288-point chart.
         interval_seconds = period_hours * 3600.0 / POINT_COUNT
         temperatures: list[float] = []
         targets: list[float] = []
@@ -105,7 +169,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
         for point in range(POINT_COUNT):
             sample_time = start_time + timedelta(seconds=interval_seconds * point)
-            while state_index < len(states) and states[state_index].last_updated <= sample_time:
+            while (
+                state_index < len(states)
+                and states[state_index].last_updated <= sample_time
+            ):
                 current_state = states[state_index]
                 state_index += 1
 
@@ -168,10 +235,30 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     hass.services.async_register(
         DOMAIN,
-        SERVICE_GET_CLIMATE_HISTORY,
-        async_get_climate_history,
-        schema=SERVICE_SCHEMA,
+        SERVICE_GET_DISPLAY_DATA,
+        async_get_display_data,
+        schema=DISPLAY_SERVICE_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    _LOGGER.info("Registered action %s.%s", DOMAIN, SERVICE_GET_CLIMATE_HISTORY)
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_CLIMATE_HISTORY,
+        async_get_climate_history,
+        schema=HISTORY_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    _LOGGER.info(
+        "Registered actions %s.%s and %s.%s",
+        DOMAIN,
+        SERVICE_GET_DISPLAY_DATA,
+        DOMAIN,
+        SERVICE_GET_CLIMATE_HISTORY,
+    )
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload the integration services."""
+    hass.services.async_remove(DOMAIN, SERVICE_GET_DISPLAY_DATA)
+    hass.services.async_remove(DOMAIN, SERVICE_GET_CLIMATE_HISTORY)
     return True
