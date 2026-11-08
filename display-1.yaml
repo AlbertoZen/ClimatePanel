@@ -2915,7 +2915,7 @@ lvgl:
         # They are placed above the live content but below the fixed chevrons and clock.
         - image:
             id: img_climate_snapshot_out
-            src: room_icon_master
+            src: room_icon_home
             x: 0
             y: 0
             width: 480
@@ -2925,7 +2925,7 @@ lvgl:
 
         - image:
             id: img_climate_snapshot_in
-            src: room_icon_master
+            src: room_icon_home
             x: 0
             y: 0
             width: 480
