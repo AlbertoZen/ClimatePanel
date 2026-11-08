@@ -54,27 +54,22 @@ jobs:
           component = Path("custom_components/heating_controller_history")
           manifest = json.loads((component / "manifest.json").read_text())
           assert manifest["domain"] == "heating_controller_history"
-          assert manifest["name"] == "Heating Controller History Bridge"
+          assert manifest["name"] == "Heating Controller"
+          assert manifest["config_flow"] is True
 
           services = yaml.safe_load((component / "services.yaml").read_text())
-          assert "get_climate_history" in services
+          assert {"get_display_data", "get_climate_history"} <= services.keys()
+          strings = json.loads((component / "strings.json").read_text())
+          assert "options" in strings and "config" in strings
 
-          package = yaml.safe_load(Path("packages/heating_controller_history.yaml").read_text())
-          assert package == {"heating_controller_history": {}}
+          firmware = Path("display-1.yaml").read_text()
+          assert "heating_controller_history.get_display_data" in firmware
+          assert "climate.nest_thermostat" not in firmware
+          assert "${climate_count}" not in firmware
 
-          print("Home Assistant integration files are valid.")
+          print("Home Assistant integration and dynamic climate configuration are valid.")
           PY
 
       - name: Validate ESPHome configuration
         run: esphome config display-1.yaml
 
-      - name: Validate supported climate counts
-        run: |
-          set -euo pipefail
-          trap 'rm -f .display-1-ci-*.yaml' EXIT
-          for count in 2 3 4; do
-            ci_file=".display-1-ci-${count}.yaml"
-            sed "s/^  climate_count: \"[234]\"$/  climate_count: \"${count}\"/" display-1.yaml > "${ci_file}"
-            echo "Validating configuration with ${count} climate entities..."
-            esphome config "${ci_file}"
-          done
