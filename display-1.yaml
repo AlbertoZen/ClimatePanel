@@ -673,7 +673,7 @@ image:
     resize: 26x26
   - platform: file
     file: mdi:chef-hat
-    id: room_icon_chef-hat
+    id: room_icon_chef_hat
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
@@ -733,7 +733,7 @@ image:
     resize: 26x26
   - platform: file
     file: mdi:air-conditioner
-    id: room_icon_air-conditioner
+    id: room_icon_air_conditioner
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
@@ -1106,7 +1106,7 @@ script:
           set_visible(id(img_room_icon_home), id(active_room_icon) == "home");
           set_visible(id(img_room_icon_sofa), id(active_room_icon) == "sofa");
           set_visible(id(img_room_icon_bed), id(active_room_icon) == "bed");
-          set_visible(id(img_room_icon_chef-hat), id(active_room_icon) == "chef-hat");
+          set_visible(id(img_room_icon_chef_hat), id(active_room_icon) == "chef-hat");
           set_visible(id(img_room_icon_thermostat), id(active_room_icon) == "thermostat");
           set_visible(id(img_room_icon_fan), id(active_room_icon) == "fan");
           set_visible(id(img_room_icon_radiator), id(active_room_icon) == "radiator");
@@ -1116,7 +1116,7 @@ script:
           set_visible(id(img_room_icon_server), id(active_room_icon) == "server");
           set_visible(id(img_room_icon_pool), id(active_room_icon) == "pool");
           set_visible(id(img_room_icon_garage), id(active_room_icon) == "garage");
-          set_visible(id(img_room_icon_air-conditioner), id(active_room_icon) == "air-conditioner");
+          set_visible(id(img_room_icon_air_conditioner), id(active_room_icon) == "air-conditioner");
       - lvgl.label.update:
           id: lbl_room_title
           text: !lambda 'return id(active_climate_name);'
@@ -1722,19 +1722,59 @@ script:
           lv_obj_set_style_arc_color(id(climate_arc), indicator, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(climate_arc), lv_color_hex(0xFFFFFF), LV_PART_KNOB);
       - lvgl.widget.update:
-          id: img_room_master
+          id: img_room_icon_home
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_kitchen
+          id: img_room_icon_sofa
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_bedroom
+          id: img_room_icon_bed
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_fourth
+          id: img_room_icon_chef_hat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_thermostat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fan
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_radiator
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fire
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_snowflake
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_desk
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_server
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_pool
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_garage
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_air_conditioner
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
@@ -2315,8 +2355,8 @@ lvgl:
                   image_recolor: 0xE2E2E9
                   image_recolor_opa: COVER
               - image:
-                  id: img_room_icon_chef-hat
-                  src: room_icon_chef-hat
+                  id: img_room_icon_chef_hat
+                  src: room_icon_chef_hat
                   align: TOP_LEFT
                   x: 16
                   y: 15
@@ -2405,8 +2445,8 @@ lvgl:
                   image_recolor: 0xE2E2E9
                   image_recolor_opa: COVER
               - image:
-                  id: img_room_icon_air-conditioner
-                  src: room_icon_air-conditioner
+                  id: img_room_icon_air_conditioner
+                  src: room_icon_air_conditioner
                   align: TOP_LEFT
                   x: 16
                   y: 15
