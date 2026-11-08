@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "65"
+  ui_revision: "66"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -198,6 +198,11 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  # False until the selected room has a valid current temperature and setpoint.
+  - id: climate_data_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: configured_climate_count
     type: int
     restore_value: no
@@ -989,6 +994,7 @@ script:
                   id(active_supported_modes) += std::string("\"") + mode_name + "\"";
                 }
             - script.execute: sync_active_climate
+            - script.wait: sync_active_climate
           on_error:
             - logger.log:
                 level: WARN
@@ -1004,38 +1010,13 @@ script:
           if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
             id(active_climate_index) = 0;
           }
-          // Keep the startup indicator visible until HA has supplied a real
-          // room temperature and a single- or dual-setpoint value.
-          const bool climate_data_ready =
+          // Data readiness controls the placeholder text immediately, but the
+          // loading modal is kept visible until all climate widgets finish updating.
+          id(climate_data_ready) =
               std::isfinite(id(active_current_temp)) &&
               (std::isfinite(id(active_target_temperature)) ||
                (std::isfinite(id(active_target_temp_low)) &&
                 std::isfinite(id(active_target_temp_high))));
-          if (id(climate_loading_overlay) != nullptr) {
-            if (climate_data_ready) {
-              lv_obj_add_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
-            } else {
-              lv_obj_clear_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
-              // Keep the dimmer above every thermostat control, not behind them.
-              lv_obj_move_foreground(id(climate_loading_overlay));
-            }
-          }
-          if (id(climate_loading_spinner) != nullptr) {
-            if (climate_data_ready) {
-              lv_obj_add_flag(id(climate_loading_spinner), LV_OBJ_FLAG_HIDDEN);
-            } else {
-              lv_obj_clear_flag(id(climate_loading_spinner), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_move_foreground(id(climate_loading_spinner));
-            }
-          }
-          if (id(climate_loading_label) != nullptr) {
-            if (climate_data_ready) {
-              lv_obj_add_flag(id(climate_loading_label), LV_OBJ_FLAG_HIDDEN);
-            } else {
-              lv_obj_clear_flag(id(climate_loading_label), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_move_foreground(id(climate_loading_label));
-            }
-          }
           auto has_mode = [&](const char *mode) {
             const std::string single = std::string("'") + mode + "'";
             const std::string double_q = std::string("\"") + mode + "\"";
@@ -1102,9 +1083,30 @@ script:
           state:
             checked: !lambda 'return id(active_hvac_mode) == "fan_only";'
       - script.execute: sync_setpoint_ui
+      - script.wait: sync_setpoint_ui
       - script.execute: sync_env_label
+      - script.wait: sync_env_label
       - script.execute: apply_theme
+      - script.wait: apply_theme
       - script.execute: update_current_temp_dot
+      - script.wait: update_current_temp_dot
+      - lambda: |-
+          // Dismiss the modal only after the room title, modes, setpoint,
+          // temperature/humidity label, theme and current-temperature marker
+          // have all been synchronised.
+          if (id(climate_data_ready)) {
+            if (id(climate_loading_overlay) != nullptr)
+              lv_obj_add_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            if (id(climate_loading_overlay) != nullptr) {
+              lv_obj_clear_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_move_foreground(id(climate_loading_overlay));
+            }
+            if (id(climate_loading_spinner) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_spinner), LV_OBJ_FLAG_HIDDEN);
+            if (id(climate_loading_label) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_label), LV_OBJ_FLAG_HIDDEN);
+          }
 
   # Snapshot-based navigation: capture the current and next climate views once,
   # then slide the pre-rendered RGB565 images. The live shared widget tree is
@@ -1264,19 +1266,24 @@ script:
           id: climate_arc
           value: !lambda 'return id(active_target_tenths);'
       - script.execute: render_setpoint
+      - script.wait: render_setpoint
 
   - id: render_setpoint
     mode: restart
     then:
       - lvgl.label.update:
           id: lbl_target_whole
-          text: !lambda 'return str_sprintf("%d", id(active_target_tenths) / 10);'
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("--");
+            return str_sprintf("%d", id(active_target_tenths) / 10);
       - lvgl.label.update:
           id: lbl_target_unit
           text: "°C"
       - lvgl.label.update:
           id: lbl_target_decimal
-          text: !lambda 'return str_sprintf(".%d", id(active_target_tenths) % 10);'
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("");
+            return str_sprintf(".%d", id(active_target_tenths) % 10);
       - lambda: |-
           // Anchor both detail labels directly to the main number.
           // Align-to uses the number's actual LVGL bounds and avoids screen-relative
@@ -2148,8 +2155,6 @@ lvgl:
         lv_obj_set_style_text_font(climate_label, id(font_small), LV_PART_MAIN);
         lv_obj_align(climate_label, LV_ALIGN_BOTTOM_MID, 0, -22);
 
-        // Keep the modal hidden until the climate data readiness check decides otherwise.
-        lv_obj_add_flag(climate_overlay, LV_OBJ_FLAG_HIDDEN);
 
     - lvgl.display.set_rotation:
         rotation: !lambda |-
