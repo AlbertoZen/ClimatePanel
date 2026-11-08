@@ -57,7 +57,7 @@ PY
 }
 
 echo "======================================"
-echo "   THERMOSTAT + HISTORY DEPLOYMENT"
+echo "   THERMOSTAT + HOME ASSISTANT CONFIG"
 echo "======================================"
 
 for cmd in git esphome python3 tar diff cmp; do
@@ -258,11 +258,10 @@ echo "======================================"
 echo "       DEPLOYMENT COMPLETED"
 echo "======================================"
 [[ "$FIRMWARE_CHANGED" == true ]] && echo "Firmware YAML: updated (ESPHome validated)" || echo "Firmware YAML: already current"
-[[ "$COMPONENT_CHANGED" == true ]] && echo "History integration: updated" || echo "History integration: already current"
+[[ "$COMPONENT_CHANGED" == true ]] && echo "Heating Controller integration: updated" || echo "Heating Controller integration: already current"
 [[ "$PACKAGE_CHANGED" == true ]] && echo "Legacy YAML package: retired" || echo "Legacy YAML package: not present"
 echo
 if [[ "$BRIDGE_CHANGED" == true ]]; then
-  echo "ACTION REQUIRED: Restart Home Assistant to load/update the custom integration."
   echo "Restart Home Assistant to load the config-entry-based Heating Controller integration."
   echo "The existing packages include in configuration.yaml is left unchanged."
   echo "After restart, add 'Heating Controller' from Settings > Devices & services > Add integration."
