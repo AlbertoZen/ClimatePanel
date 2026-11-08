@@ -2,24 +2,8 @@
 # Definition: definitions/boards/guition_esp32_s3_4848s040/manifest.yaml
 
 substitutions:
-  room_title: "Doorway"
-  master_climate_entity: "climate.nest_thermostat"
-  kitchen_climate_entity: "climate.shed_fan_thermostat"
-  bedroom_climate_entity: "climate.bedroom_heater"
-  # Number of climate slots shown: 2, 3 or 4 (Master, Kitchen, Bedroom, Climate 4).
-  climate_count: "3"
-  # Configure this entity before setting climate_count to 4.
-  fourth_climate_entity: "climate.none"
-  # Set each room's humidity entity here. Use sensor.none when a room has no sensor.
-  master_humidity_entity: "sensor.living_room_sensor_humidity"
-  kitchen_humidity_entity: "sensor.none"
-  bedroom_humidity_entity: "sensor.bedroom_sensor_humidity"
-  fourth_humidity_entity: "sensor.none"
-  # Optional outdoor temperature sensor. Leave as sensor.none to hide it.
-  outside_temperature_entity: "sensor.none"
   ui_version: "1.5"
-  ui_revision: "64"
-
+  ui_revision: "65"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -69,6 +53,11 @@ api:
         } else {
           ESP_LOGD("ha_ip", "Ignoring API client '%s' at %s", client_info.c_str(), client_address.c_str());
         }
+    - if:
+        condition:
+          lambda: 'return id(ha_client_ip) != "Waiting for HA...";'
+        then:
+          - script.execute: refresh_display_data
 
 ota:
   - platform: esphome
@@ -172,7 +161,7 @@ globals:
   - id: active_climate_entity
     type: std::string
     restore_value: no
-    initial_value: '"${master_climate_entity}"'
+    initial_value: '"climate.none"'
   - id: active_climate_name
     type: std::string
     restore_value: no
@@ -209,6 +198,22 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: configured_climate_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: master_current_temp_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: master_humidity_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: outside_temperature_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
 
 time:
   - platform: homeassistant
@@ -225,6 +230,16 @@ time:
                 lambda: 'return id(display_showing_clock);'
               then:
                 - script.execute: shift_clock_screen
+
+
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_client_ip) != "Waiting for HA...";'
+          then:
+            - script.execute: refresh_display_data
 
 output:
   - platform: ledc
@@ -580,138 +595,6 @@ sensor:
             if (hours > 0) return str_sprintf("%uh %um", hours, mins);
             return str_sprintf("%um %us", mins, s);
 
-  # Climate subscriptions feed one shared set of display/control scripts.
-  # The master also retains the existing standalone humidity sensor as a fallback.
-  - platform: homeassistant
-    id: master_current_temp
-    entity_id: ${master_climate_entity}
-    attribute: current_temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_target_temperature
-    entity_id: ${master_climate_entity}
-    attribute: temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_target_temp_low
-    entity_id: ${master_climate_entity}
-    attribute: target_temp_low
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_target_temp_high
-    entity_id: ${master_climate_entity}
-    attribute: target_temp_high
-    on_value:
-      - script.execute: sync_active_climate
-  # Optional per-room humidity entities. sensor.none means "not configured".
-  - platform: homeassistant
-    id: master_humidity_sensor
-    entity_id: ${master_humidity_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_humidity_sensor
-    entity_id: ${kitchen_humidity_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_humidity_sensor
-    entity_id: ${bedroom_humidity_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_humidity_sensor
-    entity_id: ${fourth_humidity_entity}
-    on_value:
-      - script.execute: sync_active_climate
-
-  # Optional outdoor temperature sensor; sensor.none leaves its clock pill hidden.
-  - platform: homeassistant
-    id: outside_temperature_sensor
-    entity_id: ${outside_temperature_entity}
-    accuracy_decimals: 1
-    on_value:
-      - script.execute: update_clock_environment
-
-  - platform: homeassistant
-    id: kitchen_current_temp
-    entity_id: ${kitchen_climate_entity}
-    attribute: current_temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_target_temperature
-    entity_id: ${kitchen_climate_entity}
-    attribute: temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_target_temp_low
-    entity_id: ${kitchen_climate_entity}
-    attribute: target_temp_low
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_target_temp_high
-    entity_id: ${kitchen_climate_entity}
-    attribute: target_temp_high
-    on_value:
-      - script.execute: sync_active_climate
-
-  - platform: homeassistant
-    id: bedroom_current_temp
-    entity_id: ${bedroom_climate_entity}
-    attribute: current_temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_target_temperature
-    entity_id: ${bedroom_climate_entity}
-    attribute: temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_target_temp_low
-    entity_id: ${bedroom_climate_entity}
-    attribute: target_temp_low
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_target_temp_high
-    entity_id: ${bedroom_climate_entity}
-    attribute: target_temp_high
-    on_value:
-      - script.execute: sync_active_climate
-
-  # Optional fourth climate slot; only selectable when climate_count is 4.
-  - platform: homeassistant
-    id: fourth_current_temp
-    entity_id: ${fourth_climate_entity}
-    attribute: current_temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_target_temperature
-    entity_id: ${fourth_climate_entity}
-    attribute: temperature
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_target_temp_low
-    entity_id: ${fourth_climate_entity}
-    attribute: target_temp_low
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_target_temp_high
-    entity_id: ${fourth_climate_entity}
-    attribute: target_temp_high
-    on_value:
-      - script.execute: sync_active_climate
-
 binary_sensor:
   - platform: status
     name: "Device Status"
@@ -756,104 +639,6 @@ text_sensor:
             lambda: 'return id(display_theme_source).current_option() == "Sun";'
           then:
             - script.execute: apply_sun_theme
-
-  # State, supported modes and activity are subscribed for all configured climate slots.
-  - platform: homeassistant
-    id: master_friendly_name
-    entity_id: ${master_climate_entity}
-    attribute: friendly_name
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_supported_modes
-    entity_id: ${master_climate_entity}
-    attribute: hvac_modes
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_hvac_mode
-    entity_id: ${master_climate_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: master_hvac_action
-    entity_id: ${master_climate_entity}
-    attribute: hvac_action
-    on_value:
-      - script.execute: sync_active_climate
-
-  - platform: homeassistant
-    id: kitchen_friendly_name
-    entity_id: ${kitchen_climate_entity}
-    attribute: friendly_name
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_supported_modes
-    entity_id: ${kitchen_climate_entity}
-    attribute: hvac_modes
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_hvac_mode
-    entity_id: ${kitchen_climate_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: kitchen_hvac_action
-    entity_id: ${kitchen_climate_entity}
-    attribute: hvac_action
-    on_value:
-      - script.execute: sync_active_climate
-
-  - platform: homeassistant
-    id: bedroom_friendly_name
-    entity_id: ${bedroom_climate_entity}
-    attribute: friendly_name
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_supported_modes
-    entity_id: ${bedroom_climate_entity}
-    attribute: hvac_modes
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_hvac_mode
-    entity_id: ${bedroom_climate_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: bedroom_hvac_action
-    entity_id: ${bedroom_climate_entity}
-    attribute: hvac_action
-    on_value:
-      - script.execute: sync_active_climate
-
-  # Optional fourth climate slot metadata and HVAC state.
-  - platform: homeassistant
-    id: fourth_friendly_name
-    entity_id: ${fourth_climate_entity}
-    attribute: friendly_name
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_supported_modes
-    entity_id: ${fourth_climate_entity}
-    attribute: hvac_modes
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_hvac_mode
-    entity_id: ${fourth_climate_entity}
-    on_value:
-      - script.execute: sync_active_climate
-  - platform: homeassistant
-    id: fourth_hvac_action
-    entity_id: ${fourth_climate_entity}
-    attribute: hvac_action
-    on_value:
-      - script.execute: sync_active_climate
 
 # -------------------------------------------------------------------------
 # ROOM ICONS (Material Design Icons, embedded at compile time)
@@ -937,7 +722,7 @@ script:
             - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
             - lvgl.page.show:
                 id: page_thermostat
-            - script.execute: sync_active_climate
+            - script.execute: refresh_display_data
       - if:
           condition: lvgl.is_paused
           then:
@@ -946,7 +731,7 @@ script:
             - lvgl.resume:
             - lvgl.page.show:
                 id: page_thermostat
-            - script.execute: sync_active_climate
+            - script.execute: refresh_display_data
             - lvgl.widget.redraw:
       - lambda: 'id(display_is_dimmed) = false;'
       - light.turn_on:
@@ -1081,9 +866,9 @@ script:
     mode: restart
     then:
       - lambda: |-
-          const bool have_indoor = !isnan(id(master_current_temp).state) ||
-                                   !isnan(id(master_humidity_sensor).state);
-          const bool have_outdoor = !isnan(id(outside_temperature_sensor).state);
+          const bool have_indoor = !isnan(id(master_current_temp_dynamic)) ||
+                                   !isnan(id(master_humidity_dynamic));
+          const bool have_outdoor = !isnan(id(outside_temperature_dynamic));
           if (have_indoor) lv_obj_clear_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_add_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
           if (have_outdoor) lv_obj_clear_flag(id(clock_outside_pill), LV_OBJ_FLAG_HIDDEN);
@@ -1091,8 +876,8 @@ script:
       - lvgl.label.update:
           id: lbl_clock_screen_env
           text: !lambda |-
-            const float master_temp = id(master_current_temp).state;
-            const float master_humidity = id(master_humidity_sensor).state;
+            const float master_temp = id(master_current_temp_dynamic);
+            const float master_humidity = id(master_humidity_dynamic);
             const bool have_temp = !isnan(master_temp);
             const bool have_humidity = !isnan(master_humidity);
             if (have_temp && have_humidity)
@@ -1103,8 +888,8 @@ script:
       - lvgl.label.update:
           id: lbl_clock_screen_outside
           text: !lambda |-
-            if (isnan(id(outside_temperature_sensor).state)) return std::string("");
-            return str_sprintf("Outside  %.1f°C", id(outside_temperature_sensor).state);
+            if (isnan(id(outside_temperature_dynamic))) return std::string("");
+            return str_sprintf("Outside  %.1f°C", id(outside_temperature_dynamic));
 
   # Move the complete clock group by a few pixels once per minute.
   # The content remains centred overall but avoids a permanently fixed text footprint.
@@ -1144,71 +929,80 @@ script:
           visible(id(img_wifi_strength_4), level == 4);
 
   # Select one climate data set and refresh the same shared thermostat UI.
+  - id: refresh_display_data
+    mode: single
+    then:
+      - homeassistant.action:
+          action: heating_controller_history.get_display_data
+          capture_response: true
+          on_success:
+            - lambda: |-
+                const JsonObjectConst payload = response["response"].as<JsonObjectConst>();
+                if (payload.isNull()) {
+                  ESP_LOGW("climate_config", "Home Assistant returned an empty display configuration");
+                  return;
+                }
+                const JsonArrayConst rooms = payload["rooms"].as<JsonArrayConst>();
+                const int room_count = payload["room_count"].as<int>();
+                if (room_count < 2 || room_count > 4 || rooms.size() < static_cast<size_t>(room_count)) {
+                  ESP_LOGW("climate_config", "Invalid room configuration received from Home Assistant");
+                  return;
+                }
+
+                id(configured_climate_count) = room_count;
+                if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
+                  id(active_climate_index) = 0;
+                }
+
+                auto read_number = [](JsonObjectConst room, const char *key) -> float {
+                  const JsonVariantConst value = room[key];
+                  return value.isNull() ? NAN : value.as<float>();
+                };
+
+                // The clock screen always follows the Master room, independently
+                // of which room is currently selected on the thermostat.
+                const JsonObjectConst master = rooms[0].as<JsonObjectConst>();
+                id(master_current_temp_dynamic) = read_number(master, "current_temperature");
+                id(master_humidity_dynamic) = read_number(master, "humidity");
+                id(outside_temperature_dynamic) = payload["outside_temperature"].isNull()
+                    ? NAN : payload["outside_temperature"].as<float>();
+
+                const JsonObjectConst room = rooms[id(active_climate_index)].as<JsonObjectConst>();
+                id(active_climate_entity) = room["entity_id"].as<std::string>();
+                id(active_climate_name) = room["name"].as<std::string>();
+                if (id(active_climate_name).empty()) {
+                  id(active_climate_name) = "Room " + std::to_string(id(active_climate_index) + 1);
+                }
+                id(active_current_temp) = read_number(room, "current_temperature");
+                id(active_humidity) = read_number(room, "humidity");
+                id(active_target_temperature) = read_number(room, "target_temperature");
+                id(active_target_temp_low) = read_number(room, "target_temp_low");
+                id(active_target_temp_high) = read_number(room, "target_temp_high");
+                id(active_hvac_mode) = room["hvac_mode"].as<std::string>();
+                id(active_hvac_action) = room["hvac_action"].as<std::string>();
+                id(active_supported_modes).clear();
+                const JsonArrayConst modes = room["supported_modes"].as<JsonArrayConst>();
+                for (JsonVariantConst mode : modes) {
+                  const char *mode_name = mode.as<const char *>();
+                  if (mode_name == nullptr) continue;
+                  if (!id(active_supported_modes).empty()) id(active_supported_modes) += ",";
+                  id(active_supported_modes) += std::string("\"") + mode_name + "\"";
+                }
+            - script.execute: sync_active_climate
+          on_error:
+            - logger.log:
+                level: WARN
+                format: "Could not retrieve climate configuration/data from Home Assistant"
+
   - id: sync_active_climate
     mode: restart
     then:
       - lambda: |-
-          constexpr int configured_climate_count = ${climate_count};
-          static_assert(configured_climate_count >= 2 && configured_climate_count <= 4,
-                        "climate_count must be 2, 3, or 4");
-          // A previously restored selection may not exist after reducing the configured count.
-          if (id(active_climate_index) < 0 || id(active_climate_index) >= configured_climate_count) {
+          const int room_count = id(configured_climate_count);
+          if (room_count < 2 || room_count > 4) return;
+          // Keep a restored selection valid if the room count changes in Home Assistant.
+          if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
             id(active_climate_index) = 0;
-          }
-          switch (id(active_climate_index)) {
-            case 1:
-              id(active_climate_entity) = "${kitchen_climate_entity}";
-              id(active_climate_name) = id(kitchen_friendly_name).state.empty()
-                  ? std::string("Kitchen") : id(kitchen_friendly_name).state;
-              id(active_current_temp) = id(kitchen_current_temp).state;
-              id(active_humidity) = id(kitchen_humidity_sensor).state;
-              id(active_target_temperature) = id(kitchen_target_temperature).state;
-              id(active_target_temp_low) = id(kitchen_target_temp_low).state;
-              id(active_target_temp_high) = id(kitchen_target_temp_high).state;
-              id(active_supported_modes) = id(kitchen_supported_modes).state;
-              id(active_hvac_mode) = id(kitchen_hvac_mode).state;
-              id(active_hvac_action) = id(kitchen_hvac_action).state;
-              break;
-            case 2:
-              id(active_climate_entity) = "${bedroom_climate_entity}";
-              id(active_climate_name) = id(bedroom_friendly_name).state.empty()
-                  ? std::string("Bedroom") : id(bedroom_friendly_name).state;
-              id(active_current_temp) = id(bedroom_current_temp).state;
-              id(active_humidity) = id(bedroom_humidity_sensor).state;
-              id(active_target_temperature) = id(bedroom_target_temperature).state;
-              id(active_target_temp_low) = id(bedroom_target_temp_low).state;
-              id(active_target_temp_high) = id(bedroom_target_temp_high).state;
-              id(active_supported_modes) = id(bedroom_supported_modes).state;
-              id(active_hvac_mode) = id(bedroom_hvac_mode).state;
-              id(active_hvac_action) = id(bedroom_hvac_action).state;
-              break;
-            case 3:
-              id(active_climate_entity) = "${fourth_climate_entity}";
-              id(active_climate_name) = id(fourth_friendly_name).state.empty()
-                  ? std::string("Climate 4") : id(fourth_friendly_name).state;
-              id(active_current_temp) = id(fourth_current_temp).state;
-              id(active_humidity) = id(fourth_humidity_sensor).state;
-              id(active_target_temperature) = id(fourth_target_temperature).state;
-              id(active_target_temp_low) = id(fourth_target_temp_low).state;
-              id(active_target_temp_high) = id(fourth_target_temp_high).state;
-              id(active_supported_modes) = id(fourth_supported_modes).state;
-              id(active_hvac_mode) = id(fourth_hvac_mode).state;
-              id(active_hvac_action) = id(fourth_hvac_action).state;
-              break;
-            default:
-              id(active_climate_index) = 0;
-              id(active_climate_entity) = "${master_climate_entity}";
-              id(active_climate_name) = id(master_friendly_name).state.empty()
-                  ? std::string("${room_title}") : id(master_friendly_name).state;
-              id(active_current_temp) = id(master_current_temp).state;
-              id(active_humidity) = id(master_humidity_sensor).state;
-              id(active_target_temperature) = id(master_target_temperature).state;
-              id(active_target_temp_low) = id(master_target_temp_low).state;
-              id(active_target_temp_high) = id(master_target_temp_high).state;
-              id(active_supported_modes) = id(master_supported_modes).state;
-              id(active_hvac_mode) = id(master_hvac_mode).state;
-              id(active_hvac_action) = id(master_hvac_action).state;
-              break;
           }
           // Keep the startup indicator visible until HA has supplied a real
           // room temperature and a single- or dual-setpoint value.
@@ -1261,7 +1055,7 @@ script:
           set_visible(id(btn_mode_fan_only),  has_mode("fan_only"));
           // Linear navigation follows the configured number of climate slots.
           set_visible(id(btn_climate_prev), id(active_climate_index) > 0);
-          set_visible(id(btn_climate_next), id(active_climate_index) < configured_climate_count - 1);
+          set_visible(id(btn_climate_next), id(active_climate_index) < room_count - 1);
           set_visible(id(img_room_master), id(active_climate_index) == 0);
           set_visible(id(img_room_kitchen), id(active_climate_index) == 1);
           set_visible(id(img_room_bedroom), id(active_climate_index) == 2);
@@ -1311,11 +1105,6 @@ script:
       - script.execute: sync_env_label
       - script.execute: apply_theme
       - script.execute: update_current_temp_dot
-      - if:
-          condition:
-            lambda: 'return id(history_page_visible);'
-          then:
-            - script.execute: refresh_history_chart
 
   # Snapshot-based navigation: capture the current and next climate views once,
   # then slide the pre-rendered RGB565 images. The live shared widget tree is
@@ -1369,10 +1158,10 @@ script:
       - if:
           condition:
             lambda: |-
-              constexpr int configured_climate_count = ${climate_count};
+              const int room_count = id(configured_climate_count);
               const int next_index = id(active_climate_index) + direction;
-              return !id(climate_navigation_busy) && next_index >= 0 &&
-                     next_index < configured_climate_count;
+              return !id(climate_navigation_busy) && room_count >= 2 &&
+                     next_index >= 0 && next_index < room_count;
           then:
             - lambda: 'id(climate_navigation_busy) = true;'
             - script.execute: cleanup_climate_snapshots
@@ -1397,8 +1186,8 @@ script:
                   lambda: 'return id(climate_snapshot_capture_ok);'
                 then:
                   - lambda: 'id(active_climate_index) += direction;'
-                  - script.execute: sync_active_climate
-                  - script.wait: sync_active_climate
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
                   - lambda: |-
                       // Temporarily reveal the newly-updated shared view for capture.
                       lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
@@ -1439,8 +1228,8 @@ script:
                 else:
                   # No outgoing snapshot available: retain a functional instant switch.
                   - lambda: 'id(active_climate_index) += direction;'
-                  - script.execute: sync_active_climate
-                  - script.wait: sync_active_climate
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
                   - lambda: 'id(climate_navigation_busy) = false;'
 
   - id: sync_setpoint_ui
@@ -2369,7 +2158,7 @@ lvgl:
           if (r == "90°") return 90;
           if (r == "270°") return 270;
           return 180;
-    - script.execute: sync_active_climate
+    - script.execute: refresh_display_data
     - script.execute: apply_theme
     - script.execute: render_setpoint
     - script.execute: update_wifi_icon

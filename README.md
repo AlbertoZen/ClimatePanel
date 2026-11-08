@@ -1,39 +1,33 @@
-# Thermostat ESPHome project
+# Heating Controller
 
-Source repository for the Heating Controller display firmware and its companion Home Assistant history integration.
+ESPHome firmware and the companion Home Assistant integration for the Guition ESP32-S3-4848S040 thermostat display.
 
 ## Project contents
 
-- `display-1.yaml` — ESPHome firmware configuration for the Guition ESP32-S3-4848S040 display.
-- `custom_components/heating_controller_history/` — Home Assistant custom integration that reads climate history from Recorder and returns chart data to the display.
-- `packages/heating_controller_history.yaml` — YAML package that loads the history integration.
-- `scripts/deploy-thermostat.sh` — combined deployment script for the ESPHome firmware and Home Assistant history integration.
-- `.github/workflows/validate-esphome.yml` — CI validation for the deployment script, ESPHome configuration and companion integration.
+- `display-1.yaml` — ESPHome display firmware.
+- `custom_components/heating_controller_history/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history.
+- `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
+- `.github/workflows/validate-esphome.yml` — CI checks for the firmware, integration and deployment script.
 
-Secrets are deliberately not stored in this repository. The active Home Assistant installation keeps its credentials in `/config/esphome/secrets.yaml`.
+Secrets are not stored in this repository. The Home Assistant installation keeps ESPHome credentials in `/config/esphome/secrets.yaml`.
 
-## Climate entity configuration
+## Climate room configuration
 
-The display supports **2, 3 or 4 climate entities**. Set `climate_count` in the substitutions at the top of `display-1.yaml`:
+Climate entities are configured in Home Assistant, not in ESPHome substitutions.
 
-| `climate_count` | Selectable slots |
-|---|---|
-| `"2"` | Master and Kitchen |
-| `"3"` | Master, Kitchen and Bedroom (default) |
-| `"4"` | Master, Kitchen, Bedroom and Climate 4 |
+After installing the integration, open:
 
-The Master, Kitchen and Bedroom slots use their existing substitutions:
-- `master_climate_entity` and `master_humidity_entity`
-- `kitchen_climate_entity` and `kitchen_humidity_entity`
-- `bedroom_climate_entity` and `bedroom_humidity_entity`
+**Settings → Devices & services → Heating Controller → Configure**
 
-For a fourth climate, set `climate_count: "4"`, then configure `fourth_climate_entity` and, optionally, `fourth_humidity_entity`. The fourth slot's displayed name comes from the climate entity's Home Assistant `friendly_name` attribute. Its icon is a generic thermostat.
+Choose between two and four rooms, then select a climate entity and optional humidity sensor for each room. The optional outdoor temperature sensor can also be selected there. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
 
-When reducing the configured count, the display hides the unavailable navigation slot and resets a restored selection to Master when necessary. The screensaver always shows indoor temperature and humidity from the Master climate/humidity sensors, regardless of the currently selected room.
+The four room selections are retained when changing the active room count. Only the first `room_count` entries are sent to the display. Room names come from each climate entity's `friendly_name`.
 
-All defined slot entities remain subscribed even when a slot is outside the selected count; only the selectable room count changes. Use `sensor.none` for any optional humidity sensor you do not have.
+Changes are read by the display automatically. They do not require a GitHub commit, ESPHome YAML edit, firmware compilation or reflash.
 
-## Heating Controller History integration
+The display requests the configuration and current entity states through the ESPHome encrypted Native API response mechanism. Climate controls continue to call Home Assistant's `climate.set_temperature` and `climate.set_hvac_mode` actions for the currently selected entity.
+
+## History
 
 The display requests the history action:
 
@@ -41,77 +35,26 @@ The display requests the history action:
 action: heating_controller_history.get_climate_history
 ```
 
-The integration queries Home Assistant Recorder for the selected climate entity and returns 288 evenly spaced samples containing:
+The integration queries Home Assistant Recorder and returns 288 evenly spaced samples:
 
 - Room temperature (`temperatures`)
 - Target temperature (`targets`)
 - HVAC activity (`activities`: 0 idle/off, 1 heating, 2 cooling, 3 fan/drying)
 
-The action is exposed over the ESPHome encrypted Native API response mechanism. It does not use a REST endpoint, long-lived access token, or HTTP request.
+Recorder must be enabled and retain the requested climate entity's history.
 
-### Install or update in Home Assistant
+## Install or update
 
-Copy the integration directory into the Home Assistant configuration directory so the final layout is:
+1. Ensure the integration directory is deployed to `/config/custom_components/heating_controller_history/`.
+2. Run `/config/deploy-thermostat.sh` from the Studio Code Server terminal.
+3. Restart Home Assistant when the script reports that the integration has changed.
+4. On the first migration from the old YAML package, add **Heating Controller** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
+5. In **Settings → Devices & services → ESPHome**, open the display device's Configure dialog and ensure it is allowed to perform Home Assistant actions.
 
-```text
-/config/custom_components/heating_controller_history/
-  __init__.py
-  manifest.json
-  services.yaml
-```
+The deployment script retires the former `/config/packages/heating_controller_history.yaml` package and archives it with the existing integration backup. It does not change the top-level packages include in `configuration.yaml`.
 
-Copy the package file to:
+The script validates the ESPHome YAML against the local secrets, backs up the active firmware YAML, deploys the integration and retires the old package. It does not restart Home Assistant, compile firmware or flash the ESP32.
 
-```text
-/config/packages/heating_controller_history.yaml
-```
+## Development
 
-The package assumes Home Assistant packages are enabled. If they are not already enabled, merge this into the existing top-level `homeassistant:` section in `configuration.yaml` (do not create a duplicate section):
-
-```yaml
-homeassistant:
-  packages: !include_dir_named packages
-```
-
-The package loads the integration with an empty configuration:
-
-```yaml
-heating_controller_history: {}
-```
-
-After copying or updating the integration:
-
-1. Run Home Assistant configuration validation.
-2. Restart Home Assistant fully; reloading YAML alone does not load a newly added Python integration.
-3. Check the logs for `Setting up Heating Controller History bridge` and `Registered action heating_controller_history.get_climate_history`.
-4. In Settings → Devices & services → ESPHome, open the Heating Controller device's Configure dialog and allow it to perform Home Assistant actions.
-
-Recorder must be enabled and retain the requested entity history. The integration supports climate entities and periods from 1 to 24 hours.
-
-## Development and deployment
-
-Edit the source in GitHub, validate via GitHub Actions, then deploy the firmware YAML to the ESPHome configuration directory with:
-
-```bash
-/config/deploy-thermostat.sh
-```
-
-The version-controlled deployment script is `scripts/deploy-thermostat.sh`. Install it at `/config/deploy-thermostat.sh` and run it from the Home Assistant Studio Code Server terminal.
-
-The script:
-- Pulls the latest `main` branch using fast-forward-only Git updates.
-- Checks the required local secrets without displaying their values.
-- Checks the Home Assistant integration's Python syntax, manifest, service description and package YAML.
-- Validates the firmware against the local `secrets.yaml` before replacing the active YAML.
-- Backs up the firmware separately under `/config/esphome/backups/`.
-- Archives the previous history integration and package separately under `/config/backups/thermostat-history-bridge/`.
-- Deploys the integration to `/config/custom_components/heating_controller_history/` and the package to `/config/packages/heating_controller_history.yaml`.
-- Uses staged replacements and attempts to restore the previous integration/package if a replacement step fails.
-
-It does not restart Home Assistant, compile firmware or flash the ESP32. When the integration or package changes, a full Home Assistant restart is required before the new Python integration is loaded. The script warns if it cannot recognise the normal packages include in `configuration.yaml`; it does not modify that file automatically.
-
-## Validation
-
-GitHub Actions runs on pushes and pull requests. It checks the Python syntax and metadata/YAML files for the history integration, then runs `esphome config display-1.yaml` using temporary CI-only placeholder secrets.
-
-CI does not contain or access the real Home Assistant secrets, and it does not build or flash firmware.
+After changing the ESPHome firmware YAML, increment `ui_revision`. The CI workflow runs `esphome config`; this validates ESPHome configuration but does not compile or flash firmware.
