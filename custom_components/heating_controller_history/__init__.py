@@ -14,8 +14,9 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
@@ -142,8 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         end_time = dt_util.utcnow()
         start_time = end_time - timedelta(hours=period_hours)
 
-        # Recorder queries are synchronous and must run in Home Assistant's
-        # executor, not on the event loop.
+        # Recorder queries must use Recorder's dedicated database executor.
         query = partial(
             get_significant_states,
             hass,
@@ -156,7 +156,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             no_attributes=False,
             compressed_state_format=False,
         )
-        states_by_entity = await hass.async_add_executor_job(query)
+        recorder = get_instance(hass)
+        states_by_entity = await recorder.async_add_executor_job(query)
         states = list(states_by_entity.get(entity_id, []))
         states.sort(key=lambda item: item.last_updated)
 
