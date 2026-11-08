@@ -35,7 +35,7 @@ jobs:
       - name: Create CI-only secrets
         run: |
           cat > secrets.yaml <<'EOF'
-          display_1__encryption_password: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          display_1__encryption_password: "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA="
           wifi_ssid: "CI_VALIDATION_ONLY"
           wifi_password: "ci-validation-password"
           EOF
