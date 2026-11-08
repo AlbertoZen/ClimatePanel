@@ -62,12 +62,24 @@ jobs:
           strings = json.loads((component / "strings.json").read_text())
           assert "options" in strings and "config" in strings
 
+          config_flow = (component / "config_flow.py").read_text()
+          integration = (component / "__init__.py").read_text()
           firmware = Path("display-1.yaml").read_text()
           assert "heating_controller_history.get_display_data" in firmware
           assert "climate.nest_thermostat" not in firmware
           assert "${climate_count}" not in firmware
+          assert '"icon": str(room.get("icon") or "home")' in integration
+          assert 'selector.SelectSelector' in config_flow
+          for icon in (
+              "home", "sofa", "bed", "chef-hat", "thermostat", "fan",
+              "radiator", "fire", "snowflake", "desk", "server", "pool",
+              "garage", "air-conditioner",
+          ):
+              assert f'"value": "{icon}"' in config_flow
+              assert f"file: mdi:{icon}" in firmware
+          assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
 
-          print("Home Assistant integration and dynamic climate configuration are valid.")
+          print("Home Assistant integration, room icons and diagnostics are valid.")
           PY
 
       - name: Validate ESPHome configuration

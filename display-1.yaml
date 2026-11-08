@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "66"
+  ui_revision: "67"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -198,6 +198,10 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: active_room_icon
+    type: std::string
+    restore_value: no
+    initial_value: '"home"'
   # False until the selected room has a valid current temperature and setpoint.
   - id: climate_data_ready
     type: bool
@@ -646,30 +650,90 @@ text_sensor:
             - script.execute: apply_sun_theme
 
 # -------------------------------------------------------------------------
-# ROOM ICONS (Material Design Icons, embedded at compile time)
-# -------------------------------------------------------------------------
+# Room icons available in Home Assistant. Icon choice is stored in the integration
+# and applied to the active room without changing the display layout.
 image:
   - platform: file
     file: mdi:home
-    id: room_icon_master
+    id: room_icon_home
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
   - platform: file
-    file: mdi:pot-mix
-    id: room_icon_kitchen
+    file: mdi:sofa
+    id: room_icon_sofa
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
   - platform: file
     file: mdi:bed
-    id: room_icon_bedroom
+    id: room_icon_bed
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:chef-hat
+    id: room_icon_chef_hat
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
   - platform: file
     file: mdi:thermostat
-    id: room_icon_fourth
+    id: room_icon_thermostat
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:fan
+    id: room_icon_fan
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:radiator
+    id: room_icon_radiator
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:fire
+    id: room_icon_fire
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:snowflake
+    id: room_icon_snowflake
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:desk
+    id: room_icon_desk
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:server
+    id: room_icon_server
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:pool
+    id: room_icon_pool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:garage
+    id: room_icon_garage
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:air-conditioner
+    id: room_icon_air_conditioner
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
@@ -975,6 +1039,8 @@ script:
                 const JsonObjectConst room = rooms[id(active_climate_index)].as<JsonObjectConst>();
                 id(active_climate_entity) = room["entity_id"].as<std::string>();
                 id(active_climate_name) = room["name"].as<std::string>();
+                id(active_room_icon) = room["icon"].as<std::string>();
+                if (id(active_room_icon).empty()) id(active_room_icon) = "home";
                 if (id(active_climate_name).empty()) {
                   id(active_climate_name) = "Room " + std::to_string(id(active_climate_index) + 1);
                 }
@@ -1037,10 +1103,20 @@ script:
           // Linear navigation follows the configured number of climate slots.
           set_visible(id(btn_climate_prev), id(active_climate_index) > 0);
           set_visible(id(btn_climate_next), id(active_climate_index) < room_count - 1);
-          set_visible(id(img_room_master), id(active_climate_index) == 0);
-          set_visible(id(img_room_kitchen), id(active_climate_index) == 1);
-          set_visible(id(img_room_bedroom), id(active_climate_index) == 2);
-          set_visible(id(img_room_fourth), id(active_climate_index) == 3);
+          set_visible(id(img_room_icon_home), id(active_room_icon) == "home");
+          set_visible(id(img_room_icon_sofa), id(active_room_icon) == "sofa");
+          set_visible(id(img_room_icon_bed), id(active_room_icon) == "bed");
+          set_visible(id(img_room_icon_chef_hat), id(active_room_icon) == "chef-hat");
+          set_visible(id(img_room_icon_thermostat), id(active_room_icon) == "thermostat");
+          set_visible(id(img_room_icon_fan), id(active_room_icon) == "fan");
+          set_visible(id(img_room_icon_radiator), id(active_room_icon) == "radiator");
+          set_visible(id(img_room_icon_fire), id(active_room_icon) == "fire");
+          set_visible(id(img_room_icon_snowflake), id(active_room_icon) == "snowflake");
+          set_visible(id(img_room_icon_desk), id(active_room_icon) == "desk");
+          set_visible(id(img_room_icon_server), id(active_room_icon) == "server");
+          set_visible(id(img_room_icon_pool), id(active_room_icon) == "pool");
+          set_visible(id(img_room_icon_garage), id(active_room_icon) == "garage");
+          set_visible(id(img_room_icon_air_conditioner), id(active_room_icon) == "air-conditioner");
       - lvgl.label.update:
           id: lbl_room_title
           text: !lambda 'return id(active_climate_name);'
@@ -1646,19 +1722,59 @@ script:
           lv_obj_set_style_arc_color(id(climate_arc), indicator, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(climate_arc), lv_color_hex(0xFFFFFF), LV_PART_KNOB);
       - lvgl.widget.update:
-          id: img_room_master
+          id: img_room_icon_home
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_kitchen
+          id: img_room_icon_sofa
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_bedroom
+          id: img_room_icon_bed
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
-          id: img_room_fourth
+          id: img_room_icon_chef_hat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_thermostat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fan
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_radiator
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fire
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_snowflake
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_desk
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_server
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_pool
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_garage
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_air_conditioner
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
@@ -2163,6 +2279,11 @@ lvgl:
           if (r == "90°") return 90;
           if (r == "270°") return 270;
           return 180;
+    - lvgl.label.update:
+        id: lbl_diag_mac
+        text: !lambda |-
+          const std::string mac = id(diag_mac).state;
+          return mac.empty() ? std::string("--") : mac;
     - script.execute: refresh_display_data
     - script.execute: apply_theme
     - script.execute: render_setpoint
@@ -2208,25 +2329,16 @@ lvgl:
                   text_color: 0xE2E2E9
 
               - image:
-                  id: img_room_master
-                  src: room_icon_master
+                  id: img_room_icon_home
+                  src: room_icon_home
                   align: TOP_LEFT
                   x: 16
                   y: 15
                   image_recolor: 0xE2E2E9
                   image_recolor_opa: COVER
               - image:
-                  id: img_room_kitchen
-                  src: room_icon_kitchen
-                  align: TOP_LEFT
-                  x: 16
-                  y: 15
-                  hidden: true
-                  image_recolor: 0xE2E2E9
-                  image_recolor_opa: COVER
-              - image:
-                  id: img_room_bedroom
-                  src: room_icon_bedroom
+                  id: img_room_icon_sofa
+                  src: room_icon_sofa
                   align: TOP_LEFT
                   x: 16
                   y: 15
@@ -2234,8 +2346,107 @@ lvgl:
                   image_recolor: 0xE2E2E9
                   image_recolor_opa: COVER
               - image:
-                  id: img_room_fourth
-                  src: room_icon_fourth
+                  id: img_room_icon_bed
+                  src: room_icon_bed
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_chef_hat
+                  src: room_icon_chef_hat
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_thermostat
+                  src: room_icon_thermostat
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_fan
+                  src: room_icon_fan
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_radiator
+                  src: room_icon_radiator
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_fire
+                  src: room_icon_fire
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_snowflake
+                  src: room_icon_snowflake
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_desk
+                  src: room_icon_desk
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_server
+                  src: room_icon_server
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_pool
+                  src: room_icon_pool
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_garage
+                  src: room_icon_garage
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_air_conditioner
+                  src: room_icon_air_conditioner
                   align: TOP_LEFT
                   x: 16
                   y: 15
@@ -2704,7 +2915,7 @@ lvgl:
         # They are placed above the live content but below the fixed chevrons and clock.
         - image:
             id: img_climate_snapshot_out
-            src: room_icon_master
+            src: room_icon_home
             x: 0
             y: 0
             width: 480
@@ -2714,7 +2925,7 @@ lvgl:
 
         - image:
             id: img_climate_snapshot_in
-            src: room_icon_master
+            src: room_icon_home
             x: 0
             y: 0
             width: 480

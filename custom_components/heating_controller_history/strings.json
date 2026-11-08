@@ -14,14 +14,19 @@
           "humidity_3": "Room 3 humidity sensor",
           "climate_4": "Room 4 climate",
           "humidity_4": "Room 4 humidity sensor",
-          "outside_temperature_entity": "Outdoor temperature sensor"
+          "outside_temperature_entity": "Outdoor temperature sensor",
+          "icon_1": "Room 1 icon",
+          "icon_2": "Room 2 icon",
+          "icon_3": "Room 3 icon",
+          "icon_4": "Room 4 icon"
         }
       }
     },
     "error": {
       "invalid_count": "Choose between two and four rooms.",
       "missing_climate": "Select a climate entity for every enabled room.",
-      "duplicate_climates": "Each room must use a different climate entity."
+      "duplicate_climates": "Each room must use a different climate entity.",
+      "invalid_icon": "Choose one of the supported room icons."
     },
     "abort": {
       "already_configured": "Heating Controller is already configured."
@@ -42,14 +47,19 @@
           "humidity_3": "Room 3 humidity sensor",
           "climate_4": "Room 4 climate",
           "humidity_4": "Room 4 humidity sensor",
-          "outside_temperature_entity": "Outdoor temperature sensor"
+          "outside_temperature_entity": "Outdoor temperature sensor",
+          "icon_1": "Room 1 icon",
+          "icon_2": "Room 2 icon",
+          "icon_3": "Room 3 icon",
+          "icon_4": "Room 4 icon"
         }
       }
     },
     "error": {
       "invalid_count": "Choose between two and four rooms.",
       "missing_climate": "Select a climate entity for every enabled room.",
-      "duplicate_climates": "Each room must use a different climate entity."
+      "duplicate_climates": "Each room must use a different climate entity.",
+      "invalid_icon": "Choose one of the supported room icons."
     }
   }
 }

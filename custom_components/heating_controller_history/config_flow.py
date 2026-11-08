@@ -13,13 +13,31 @@ from homeassistant.helpers import selector
 
 DOMAIN = "heating_controller_history"
 
+ICON_OPTIONS = [
+    {"label": "Home", "value": "home"},
+    {"label": "Living room", "value": "sofa"},
+    {"label": "Bedroom", "value": "bed"},
+    {"label": "Kitchen", "value": "chef-hat"},
+    {"label": "Thermostat", "value": "thermostat"},
+    {"label": "Fan", "value": "fan"},
+    {"label": "Radiator", "value": "radiator"},
+    {"label": "Fireplace", "value": "fire"},
+    {"label": "Cooling", "value": "snowflake"},
+    {"label": "Office", "value": "desk"},
+    {"label": "Server room", "value": "server"},
+    {"label": "Swimming pool", "value": "pool"},
+    {"label": "Garage", "value": "garage"},
+    {"label": "Air conditioning", "value": "air-conditioner"},
+]
+DEFAULT_ICONS = ["home", "chef-hat", "bed", "thermostat"]
+
 DEFAULT_SETTINGS: dict[str, Any] = {
     "room_count": 3,
     "rooms": [
-        {"climate_entity": "climate.nest_thermostat", "humidity_entity": "sensor.living_room_sensor_humidity"},
-        {"climate_entity": "climate.shed_fan_thermostat", "humidity_entity": None},
-        {"climate_entity": "climate.bedroom_heater", "humidity_entity": "sensor.bedroom_sensor_humidity"},
-        {"climate_entity": None, "humidity_entity": None},
+        {"climate_entity": "climate.nest_thermostat", "humidity_entity": "sensor.living_room_sensor_humidity", "icon": "home"},
+        {"climate_entity": "climate.shed_fan_thermostat", "humidity_entity": None, "icon": "chef-hat"},
+        {"climate_entity": "climate.bedroom_heater", "humidity_entity": "sensor.bedroom_sensor_humidity", "icon": "bed"},
+        {"climate_entity": None, "humidity_entity": None, "icon": "thermostat"},
     ],
     "outside_temperature_entity": None,
 }
@@ -40,6 +58,9 @@ def _normalise_input(user_input: dict[str, Any]) -> tuple[dict[str, Any] | None,
     for index in range(1, 5):
         climate_entity = user_input.get(f"climate_{index}") or None
         humidity_entity = user_input.get(f"humidity_{index}") or None
+        icon = user_input.get(f"icon_{index}") or DEFAULT_ICONS[index - 1]
+        if icon not in {option["value"] for option in ICON_OPTIONS}:
+            return None, "invalid_icon"
 
         if index <= room_count:
             if not climate_entity:
@@ -52,6 +73,7 @@ def _normalise_input(user_input: dict[str, Any]) -> tuple[dict[str, Any] | None,
             {
                 "climate_entity": climate_entity,
                 "humidity_entity": humidity_entity,
+                "icon": icon,
             }
         )
 
@@ -90,6 +112,10 @@ def _build_schema(current: dict[str, Any]) -> vol.Schema:
         )
         schema[climate_key] = selector.EntitySelector({"domain": "climate"})
         schema[humidity_key] = selector.EntitySelector({"domain": "sensor"})
+        icon = room.get("icon") or DEFAULT_ICONS[index - 1]
+        schema[vol.Optional(f"icon_{index}", default=icon)] = selector.SelectSelector(
+            {"options": ICON_OPTIONS, "mode": "dropdown"}
+        )
 
     outside_entity = current.get("outside_temperature_entity")
     outside_key = (
