@@ -13,7 +13,7 @@ substitutions:
   # Optional outdoor temperature sensor. Leave as sensor.none to hide it.
   outside_temperature_entity: "sensor.none"
   ui_version: "1.5"
-  ui_revision: "61"
+  ui_revision: "62"
 
 esphome:
   name: display-1
@@ -522,7 +522,7 @@ font:
     glyphs: '.0123456789'
   - file: "gfonts://Google Sans Flex@500"
     id: font_clock_time
-    size: 100
+    size: 150
     bpp: 4
     glyphs: '0123456789:'
   - file: "gfonts://Google Sans Flex@500"
@@ -1014,7 +1014,8 @@ script:
     mode: restart
     then:
       - lambda: |-
-          const bool have_indoor = !isnan(id(active_current_temp)) || !isnan(id(active_humidity));
+          const bool have_indoor = !isnan(id(master_current_temp).state) ||
+                                   !isnan(id(master_humidity_sensor).state);
           const bool have_outdoor = !isnan(id(outside_temperature_sensor).state);
           if (have_indoor) lv_obj_clear_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_add_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
@@ -1023,12 +1024,14 @@ script:
       - lvgl.label.update:
           id: lbl_clock_screen_env
           text: !lambda |-
-            const bool have_temp = !isnan(id(active_current_temp));
-            const bool have_humidity = !isnan(id(active_humidity));
+            const float master_temp = id(master_current_temp).state;
+            const float master_humidity = id(master_humidity_sensor).state;
+            const bool have_temp = !isnan(master_temp);
+            const bool have_humidity = !isnan(master_humidity);
             if (have_temp && have_humidity)
-              return str_sprintf("%.1f°C  •  %.0f%%", id(active_current_temp), id(active_humidity));
-            if (have_temp) return str_sprintf("%.1f°C", id(active_current_temp));
-            if (have_humidity) return str_sprintf("%.0f%%", id(active_humidity));
+              return str_sprintf("%.1f°C  •  %.0f%%", master_temp, master_humidity);
+            if (have_temp) return str_sprintf("%.1f°C", master_temp);
+            if (have_humidity) return str_sprintf("%.0f%%", master_humidity);
             return std::string("");
       - lvgl.label.update:
           id: lbl_clock_screen_outside
@@ -3342,28 +3345,28 @@ lvgl:
             id: clock_screen_group
             align: CENTER
             width: 440
-            height: 390
+            height: 420
             bg_opa: TRANSP
             border_width: 0
             pad_all: 0
             widgets:
               - label:
                   id: lbl_clock_screen_time
-                  align: TOP_LEFT
-                  x: 10
-                  y: 115
-                  width: 420
-                  text_align: LEFT
+                  align: TOP_MID
+                  x: 0
+                  y: 65
+                  width: 440
+                  text_align: CENTER
                   text: "--:--"
                   text_font: font_clock_time
                   text_color: 0xE2E2E9
               - label:
                   id: lbl_clock_screen_date
-                  align: TOP_LEFT
-                  x: 10
-                  y: 237
-                  width: 420
-                  text_align: LEFT
+                  align: TOP_MID
+                  x: 0
+                  y: 250
+                  width: 440
+                  text_align: CENTER
                   text: "-- --- ----"
                   text_font: font_clock_date
                   text_color: 0xC4C6D0
@@ -3373,7 +3376,7 @@ lvgl:
               - obj:
                   id: clock_env_pill
                   align: TOP_MID
-                  y: 320
+                  y: 335
                   width: 440
                   height: 32
                   bg_opa: TRANSP
@@ -3392,7 +3395,7 @@ lvgl:
               - obj:
                   id: clock_outside_pill
                   align: TOP_MID
-                  y: 360
+                  y: 375
                   width: 440
                   height: 28
                   bg_opa: TRANSP
