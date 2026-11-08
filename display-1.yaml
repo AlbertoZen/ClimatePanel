@@ -722,7 +722,7 @@ script:
             - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
             - lvgl.page.show:
                 id: page_thermostat
-            - script.execute: sync_active_climate
+            - script.execute: refresh_display_data
       - if:
           condition: lvgl.is_paused
           then:
@@ -731,7 +731,7 @@ script:
             - lvgl.resume:
             - lvgl.page.show:
                 id: page_thermostat
-            - script.execute: sync_active_climate
+            - script.execute: refresh_display_data
             - lvgl.widget.redraw:
       - lambda: 'id(display_is_dimmed) = false;'
       - light.turn_on:
