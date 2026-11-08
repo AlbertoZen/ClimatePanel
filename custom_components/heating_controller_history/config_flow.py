@@ -138,16 +138,13 @@ def _normalise_room_input(
         humidity_key = f"humidity_{index}"
         icon_key = f"icon_{index}"
 
-        climate_entity = user_input.get(climate_key, room.get("climate_entity"))
-        humidity_entity = (
-            user_input.get(humidity_key)
-            if humidity_key in user_input
-            else room.get("humidity_entity")
-        )
+        climate_entity = user_input.get(climate_key) or room.get("climate_entity")
+        # An omitted optional humidity selector means the user left it empty.
+        humidity_entity = user_input.get(humidity_key)
         icon = (
             user_input.get(icon_key)
-            if icon_key in user_input
-            else room.get("icon") or DEFAULT_ICONS[index - 1]
+            or room.get("icon")
+            or DEFAULT_ICONS[index - 1]
         )
 
         if not climate_entity:
