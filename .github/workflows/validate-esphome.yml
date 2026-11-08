@@ -40,6 +40,9 @@ jobs:
           wifi_password: "ci-validation-password"
           EOF
 
+      - name: Check deployment script syntax
+        run: bash -n scripts/deploy-thermostat.sh
+
       - name: Validate Home Assistant integration files
         run: |
           python -m compileall -q custom_components/heating_controller_history
