@@ -67,3 +67,14 @@ jobs:
 
       - name: Validate ESPHome configuration
         run: esphome config display-1.yaml
+
+      - name: Validate supported climate counts
+        run: |
+          set -euo pipefail
+          trap 'rm -f .display-1-ci-*.yaml' EXIT
+          for count in 2 3 4; do
+            ci_file=".display-1-ci-${count}.yaml"
+            sed "s/^  climate_count: \"[234]\"$/  climate_count: \"${count}\"/" display-1.yaml > "${ci_file}"
+            echo "Validating configuration with ${count} climate entities..."
+            esphome config "${ci_file}"
+          done
