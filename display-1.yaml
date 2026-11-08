@@ -6,14 +6,19 @@ substitutions:
   master_climate_entity: "climate.nest_thermostat"
   kitchen_climate_entity: "climate.shed_fan_thermostat"
   bedroom_climate_entity: "climate.bedroom_heater"
+  # Number of climate slots shown: 2, 3 or 4 (Master, Kitchen, Bedroom, Climate 4).
+  climate_count: "3"
+  # Configure this entity before setting climate_count to 4.
+  fourth_climate_entity: "climate.none"
   # Set each room's humidity entity here. Use sensor.none when a room has no sensor.
   master_humidity_entity: "sensor.living_room_sensor_humidity"
   kitchen_humidity_entity: "sensor.none"
   bedroom_humidity_entity: "sensor.bedroom_sensor_humidity"
+  fourth_humidity_entity: "sensor.none"
   # Optional outdoor temperature sensor. Leave as sensor.none to hide it.
   outside_temperature_entity: "sensor.none"
   ui_version: "1.5"
-  ui_revision: "63"
+  ui_revision: "64"
 
 esphome:
   name: display-1
@@ -167,7 +172,7 @@ globals:
   - id: active_climate_entity
     type: std::string
     restore_value: no
-    initial_value: '"climate.nest_thermostat"'
+    initial_value: '"${master_climate_entity}"'
   - id: active_climate_name
     type: std::string
     restore_value: no
@@ -575,7 +580,7 @@ sensor:
             if (hours > 0) return str_sprintf("%uh %um", hours, mins);
             return str_sprintf("%um %us", mins, s);
 
-  # Three climate subscriptions feed one shared set of display/control scripts.
+  # Climate subscriptions feed one shared set of display/control scripts.
   # The master also retains the existing standalone humidity sensor as a fallback.
   - platform: homeassistant
     id: master_current_temp
@@ -615,6 +620,11 @@ sensor:
   - platform: homeassistant
     id: bedroom_humidity_sensor
     entity_id: ${bedroom_humidity_entity}
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_humidity_sensor
+    entity_id: ${fourth_humidity_entity}
     on_value:
       - script.execute: sync_active_climate
 
@@ -676,6 +686,32 @@ sensor:
     on_value:
       - script.execute: sync_active_climate
 
+  # Optional fourth climate slot; only selectable when climate_count is 4.
+  - platform: homeassistant
+    id: fourth_current_temp
+    entity_id: ${fourth_climate_entity}
+    attribute: current_temperature
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_target_temperature
+    entity_id: ${fourth_climate_entity}
+    attribute: temperature
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_target_temp_low
+    entity_id: ${fourth_climate_entity}
+    attribute: target_temp_low
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_target_temp_high
+    entity_id: ${fourth_climate_entity}
+    attribute: target_temp_high
+    on_value:
+      - script.execute: sync_active_climate
+
 binary_sensor:
   - platform: status
     name: "Device Status"
@@ -721,7 +757,7 @@ text_sensor:
           then:
             - script.execute: apply_sun_theme
 
-  # State, supported modes and activity are subscribed for all three climates.
+  # State, supported modes and activity are subscribed for all configured climate slots.
   - platform: homeassistant
     id: master_friendly_name
     entity_id: ${master_climate_entity}
@@ -794,6 +830,31 @@ text_sensor:
     on_value:
       - script.execute: sync_active_climate
 
+  # Optional fourth climate slot metadata and HVAC state.
+  - platform: homeassistant
+    id: fourth_friendly_name
+    entity_id: ${fourth_climate_entity}
+    attribute: friendly_name
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_supported_modes
+    entity_id: ${fourth_climate_entity}
+    attribute: hvac_modes
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_hvac_mode
+    entity_id: ${fourth_climate_entity}
+    on_value:
+      - script.execute: sync_active_climate
+  - platform: homeassistant
+    id: fourth_hvac_action
+    entity_id: ${fourth_climate_entity}
+    attribute: hvac_action
+    on_value:
+      - script.execute: sync_active_climate
+
 # -------------------------------------------------------------------------
 # ROOM ICONS (Material Design Icons, embedded at compile time)
 # -------------------------------------------------------------------------
@@ -813,6 +874,12 @@ image:
   - platform: file
     file: mdi:bed
     id: room_icon_bedroom
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:thermostat
+    id: room_icon_fourth
     type: RGB565
     transparency: alpha_channel
     resize: 26x26
@@ -1081,9 +1148,16 @@ script:
     mode: restart
     then:
       - lambda: |-
+          constexpr int configured_climate_count = ${climate_count};
+          static_assert(configured_climate_count >= 2 && configured_climate_count <= 4,
+                        "climate_count must be 2, 3, or 4");
+          // A previously restored selection may not exist after reducing the configured count.
+          if (id(active_climate_index) < 0 || id(active_climate_index) >= configured_climate_count) {
+            id(active_climate_index) = 0;
+          }
           switch (id(active_climate_index)) {
             case 1:
-              id(active_climate_entity) = "climate.shed_fan_thermostat";
+              id(active_climate_entity) = "${kitchen_climate_entity}";
               id(active_climate_name) = id(kitchen_friendly_name).state.empty()
                   ? std::string("Kitchen") : id(kitchen_friendly_name).state;
               id(active_current_temp) = id(kitchen_current_temp).state;
@@ -1096,7 +1170,7 @@ script:
               id(active_hvac_action) = id(kitchen_hvac_action).state;
               break;
             case 2:
-              id(active_climate_entity) = "climate.bedroom_heater";
+              id(active_climate_entity) = "${bedroom_climate_entity}";
               id(active_climate_name) = id(bedroom_friendly_name).state.empty()
                   ? std::string("Bedroom") : id(bedroom_friendly_name).state;
               id(active_current_temp) = id(bedroom_current_temp).state;
@@ -1108,9 +1182,22 @@ script:
               id(active_hvac_mode) = id(bedroom_hvac_mode).state;
               id(active_hvac_action) = id(bedroom_hvac_action).state;
               break;
+            case 3:
+              id(active_climate_entity) = "${fourth_climate_entity}";
+              id(active_climate_name) = id(fourth_friendly_name).state.empty()
+                  ? std::string("Climate 4") : id(fourth_friendly_name).state;
+              id(active_current_temp) = id(fourth_current_temp).state;
+              id(active_humidity) = id(fourth_humidity_sensor).state;
+              id(active_target_temperature) = id(fourth_target_temperature).state;
+              id(active_target_temp_low) = id(fourth_target_temp_low).state;
+              id(active_target_temp_high) = id(fourth_target_temp_high).state;
+              id(active_supported_modes) = id(fourth_supported_modes).state;
+              id(active_hvac_mode) = id(fourth_hvac_mode).state;
+              id(active_hvac_action) = id(fourth_hvac_action).state;
+              break;
             default:
               id(active_climate_index) = 0;
-              id(active_climate_entity) = "climate.nest_thermostat";
+              id(active_climate_entity) = "${master_climate_entity}";
               id(active_climate_name) = id(master_friendly_name).state.empty()
                   ? std::string("${room_title}") : id(master_friendly_name).state;
               id(active_current_temp) = id(master_current_temp).state;
@@ -1172,12 +1259,13 @@ script:
           set_visible(id(btn_mode_auto),      has_mode("auto"));
           set_visible(id(btn_mode_dry),       has_mode("dry"));
           set_visible(id(btn_mode_fan_only),  has_mode("fan_only"));
-          // Linear navigation: no previous climate on Master, no next on Bedroom.
+          // Linear navigation follows the configured number of climate slots.
           set_visible(id(btn_climate_prev), id(active_climate_index) > 0);
-          set_visible(id(btn_climate_next), id(active_climate_index) < 2);
+          set_visible(id(btn_climate_next), id(active_climate_index) < configured_climate_count - 1);
           set_visible(id(img_room_master), id(active_climate_index) == 0);
           set_visible(id(img_room_kitchen), id(active_climate_index) == 1);
           set_visible(id(img_room_bedroom), id(active_climate_index) == 2);
+          set_visible(id(img_room_fourth), id(active_climate_index) == 3);
       - lvgl.label.update:
           id: lbl_room_title
           text: !lambda 'return id(active_climate_name);'
@@ -1281,8 +1369,10 @@ script:
       - if:
           condition:
             lambda: |-
+              constexpr int configured_climate_count = ${climate_count};
               const int next_index = id(active_climate_index) + direction;
-              return !id(climate_navigation_busy) && next_index >= 0 && next_index <= 2;
+              return !id(climate_navigation_busy) && next_index >= 0 &&
+                     next_index < configured_climate_count;
           then:
             - lambda: 'id(climate_navigation_busy) = true;'
             - script.execute: cleanup_climate_snapshots
@@ -1769,6 +1859,10 @@ script:
           image_recolor_opa: COVER
       - lvgl.widget.update:
           id: img_room_bedroom
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_fourth
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
       - lvgl.widget.update:
@@ -2339,6 +2433,15 @@ lvgl:
               - image:
                   id: img_room_bedroom
                   src: room_icon_bedroom
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_fourth
+                  src: room_icon_fourth
                   align: TOP_LEFT
                   x: 16
                   y: 15
