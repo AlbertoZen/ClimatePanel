@@ -27,6 +27,10 @@ Changes are read by the display automatically. They do not require a GitHub comm
 
 The display requests the configuration and current entity states through the ESPHome encrypted Native API response mechanism. Climate controls continue to call Home Assistant's `climate.set_temperature` and `climate.set_hvac_mode` actions for the currently selected entity.
 
+Each room also has a configurable icon in the same Configure form. The available choices are Home, Living room, Bedroom, Kitchen, Thermostat, Fan, Radiator, Fireplace, Cooling, Office, Server room, Swimming pool, Garage and Air conditioning. The firmware includes these icon assets; changing the selection takes effect without a reflash.
+
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID and signal strength. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+
 ## History
 
 The display requests the history action:
