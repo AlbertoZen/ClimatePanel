@@ -1,3 +1,7 @@
+get_display_data:
+  name: Get display data
+  description: Return the configured climate rooms and their current Home Assistant states to the ESPHome display.
+
 get_climate_history:
   name: Get climate history
   description: Return recorded temperature, target and HVAC activity samples for a climate entity.
