@@ -242,9 +242,23 @@ fi
 [[ -n "$PACKAGE_OLD" && -f "$PACKAGE_OLD" ]] && rm -f "$PACKAGE_OLD"
 
 PACKAGE_LOADER_FOUND=false
-if [[ -f "$HA_CONFIG/configuration.yaml" ]] && \
-   grep -Ev '^[[:space:]]*#|^[[:space:]]*$' "$HA_CONFIG/configuration.yaml" | \
-   grep -Eq '^[[:space:]]*packages:[[:space:]]*!include_dir_(named|merge_named)[[:space:]]+(\./)?packages([[:space:]]*(#.*)?$)'; then
+if [[ -f "$HA_CONFIG/configuration.yaml" ]] && python3 - "$HA_CONFIG/configuration.yaml" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+configuration = Path(sys.argv[1]).read_text(errors="replace")
+for raw_line in configuration.splitlines():
+    # Strip comments and normalise whitespace/CRLF before matching.
+    line = raw_line.split("#", 1)[0].strip()
+    if re.fullmatch(
+        r"packages:\s*!include_dir_(?:named|merge_named)\s+(?:\./)?packages",
+        line,
+    ):
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+then
   PACKAGE_LOADER_FOUND=true
 fi
 
