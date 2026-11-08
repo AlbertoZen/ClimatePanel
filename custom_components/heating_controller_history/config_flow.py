@@ -102,7 +102,7 @@ def _build_schema(current: dict[str, Any]) -> vol.Schema:
     return vol.Schema(schema)
 
 
-class HeatingControllerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Set up Heating Controller."""
 
     VERSION = 1
