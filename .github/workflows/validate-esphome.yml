@@ -71,7 +71,6 @@ jobs:
           assert "for index in range(1, room_count + 1)" in config_flow
           assert "async_step_rooms" in config_flow
           assert "climate_4" not in config_flow
-          assert "climate_4" not in strings["options"]["step"]["rooms"]["data"] or True
           assert "get_instance(hass)" in integration
           assert "recorder.async_add_executor_job(query)" in integration
           assert "hass.async_add_executor_job(query)" not in integration
