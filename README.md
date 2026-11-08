@@ -7,7 +7,8 @@ Source repository for the Heating Controller display firmware and its companion 
 - `display-1.yaml` — ESPHome firmware configuration for the Guition ESP32-S3-4848S040 display.
 - `custom_components/heating_controller_history/` — Home Assistant custom integration that reads climate history from Recorder and returns chart data to the display.
 - `packages/heating_controller_history.yaml` — YAML package that loads the history integration.
-- `.github/workflows/validate-esphome.yml` — CI validation for the ESPHome configuration and companion integration.
+- `scripts/deploy-thermostat.sh` — combined deployment script for the ESPHome firmware and Home Assistant history integration.
+- `.github/workflows/validate-esphome.yml` — CI validation for the deployment script, ESPHome configuration and companion integration.
 
 Secrets are deliberately not stored in this repository. The active Home Assistant installation keeps its credentials in `/config/esphome/secrets.yaml`.
 
@@ -74,9 +75,19 @@ Edit the source in GitHub, validate via GitHub Actions, then deploy the firmware
 /config/deploy-thermostat.sh
 ```
 
-The deployment script backs up the active YAML and validates it against the local secrets before replacing it. It does not compile or flash firmware.
+The version-controlled deployment script is `scripts/deploy-thermostat.sh`. Install it at `/config/deploy-thermostat.sh` and run it from the Home Assistant Studio Code Server terminal.
 
-The history integration is Home Assistant-side code. The deployment script currently deploys only `display-1.yaml`; updating the integration requires copying its directory and package to the Home Assistant paths listed above, then restarting Home Assistant.
+The script:
+- Pulls the latest `main` branch using fast-forward-only Git updates.
+- Checks the required local secrets without displaying their values.
+- Checks the Home Assistant integration's Python syntax, manifest, service description and package YAML.
+- Validates the firmware against the local `secrets.yaml` before replacing the active YAML.
+- Backs up the firmware separately under `/config/esphome/backups/`.
+- Archives the previous history integration and package separately under `/config/backups/thermostat-history-bridge/`.
+- Deploys the integration to `/config/custom_components/heating_controller_history/` and the package to `/config/packages/heating_controller_history.yaml`.
+- Uses staged replacements and attempts to restore the previous integration/package if a replacement step fails.
+
+It does not restart Home Assistant, compile firmware or flash the ESP32. When the integration or package changes, a full Home Assistant restart is required before the new Python integration is loaded. The script warns if it cannot recognise the normal packages include in `configuration.yaml`; it does not modify that file automatically.
 
 ## Validation
 
