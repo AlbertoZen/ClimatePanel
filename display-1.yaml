@@ -2401,7 +2401,7 @@ lvgl:
                   align: CENTER
                   x: -18
                   y: -8
-                  text: "20"
+                  text: "--"
                   text_font: font_target
                   text_color: 0xE2E2E9
 
@@ -2419,7 +2419,7 @@ lvgl:
                   align: CENTER
                   x: 66
                   y: 56
-                  text: ".0"
+                  text: ""
                   text_font: font_target_decimal
                   text_color: 0xE2E2E9
 
