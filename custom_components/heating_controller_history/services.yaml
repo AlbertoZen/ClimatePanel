@@ -1,0 +1,23 @@
+get_climate_history:
+  name: Get climate history
+  description: Return recorded temperature, target and HVAC activity samples for a climate entity.
+  fields:
+    entity_id:
+      name: Climate entity
+      description: Climate entity whose Recorder history should be returned.
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: climate
+    period_hours:
+      name: Period in hours
+      description: Number of hours to retrieve, up to 24.
+      required: false
+      default: 24
+      selector:
+        number:
+          min: 1
+          max: 24
+          step: 1
+          mode: slider
