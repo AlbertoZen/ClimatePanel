@@ -1,7 +1,7 @@
 {
   "domain": "heating_controller_history",
   "name": "Heating Controller",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "documentation": "https://www.home-assistant.io/integrations/history/",
   "config_flow": true,
   "dependencies": [

@@ -48,6 +48,7 @@ jobs:
           python -m compileall -q custom_components/heating_controller_history
           python - <<'PY'
           import json
+          import struct
           from pathlib import Path
           import yaml
 
@@ -55,16 +56,24 @@ jobs:
           manifest = json.loads((component / "manifest.json").read_text())
           assert manifest["domain"] == "heating_controller_history"
           assert manifest["name"] == "Heating Controller"
+          assert manifest["version"] == "2.1.1"
           assert manifest["config_flow"] is True
 
           services = yaml.safe_load((component / "services.yaml").read_text())
           assert {"get_display_data", "get_climate_history"} <= services.keys()
           strings = json.loads((component / "strings.json").read_text())
-          assert "options" in strings and "config" in strings
+          assert "rooms" in strings["config"]["step"]
+          assert "rooms" in strings["options"]["step"]
 
           config_flow = (component / "config_flow.py").read_text()
           integration = (component / "__init__.py").read_text()
           firmware = Path("display-1.yaml").read_text()
+          assert "for index in range(1, room_count + 1)" in config_flow
+          assert "async_step_rooms" in config_flow
+          assert "climate_4" not in config_flow
+          assert "get_instance(hass)" in integration
+          assert "recorder.async_add_executor_job(query)" in integration
+          assert "hass.async_add_executor_job(query)" not in integration
           assert "heating_controller_history.get_display_data" in firmware
           assert "climate.nest_thermostat" not in firmware
           assert "${climate_count}" not in firmware
@@ -77,11 +86,14 @@ jobs:
           ):
               assert f'"value": "{icon}"' in config_flow
               assert f"file: mdi:{icon}" in firmware
+          icon_path = component / "brand" / "icon.png"
+          icon_bytes = icon_path.read_bytes()
+          assert icon_bytes[:8] == bytes.fromhex("89504e470d0a1a0a")
+          assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
 
-          print("Home Assistant integration, room icons and diagnostics are valid.")
+          print("Home Assistant integration, dynamic room configuration, brand icon and diagnostics are valid.")
           PY
 
       - name: Validate ESPHome configuration
         run: esphome config display-1.yaml
-

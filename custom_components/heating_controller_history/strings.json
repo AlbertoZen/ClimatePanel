@@ -3,21 +3,27 @@
     "step": {
       "user": {
         "title": "Heating Controller",
-        "description": "Choose the climate entities and optional humidity sensors shown on the thermostat display. The first two to four rooms are used in the order shown.",
+        "description": "Choose how many rooms to display and select an optional outdoor temperature sensor. The next step will show only the room slots you enabled.",
         "data": {
           "room_count": "Number of rooms",
+          "outside_temperature_entity": "Outdoor temperature sensor"
+        }
+      },
+      "rooms": {
+        "title": "Heating Controller rooms",
+        "description": "Select a climate entity, optional humidity sensor and icon for each enabled room.",
+        "data": {
           "climate_1": "Room 1 climate (Master)",
           "humidity_1": "Room 1 humidity sensor",
+          "icon_1": "Room 1 icon",
           "climate_2": "Room 2 climate",
           "humidity_2": "Room 2 humidity sensor",
+          "icon_2": "Room 2 icon",
           "climate_3": "Room 3 climate",
           "humidity_3": "Room 3 humidity sensor",
+          "icon_3": "Room 3 icon",
           "climate_4": "Room 4 climate",
           "humidity_4": "Room 4 humidity sensor",
-          "outside_temperature_entity": "Outdoor temperature sensor",
-          "icon_1": "Room 1 icon",
-          "icon_2": "Room 2 icon",
-          "icon_3": "Room 3 icon",
           "icon_4": "Room 4 icon"
         }
       }
@@ -36,21 +42,27 @@
     "step": {
       "init": {
         "title": "Heating Controller rooms",
-        "description": "Changes are sent to the display automatically. No firmware edit, GitHub commit or ESPHome recompile is required. Only the first selected number of rooms are active; all four selections are retained.",
+        "description": "Choose the number of active rooms. The next step will show only those room slots. Settings for disabled rooms are retained, so they are restored if you increase the room count later.",
         "data": {
           "room_count": "Number of rooms",
+          "outside_temperature_entity": "Outdoor temperature sensor"
+        }
+      },
+      "rooms": {
+        "title": "Configure active rooms",
+        "description": "Only the selected number of rooms is shown. Changes are sent to the display automatically; no firmware edit or ESPHome recompile is required.",
+        "data": {
           "climate_1": "Room 1 climate (Master)",
           "humidity_1": "Room 1 humidity sensor",
+          "icon_1": "Room 1 icon",
           "climate_2": "Room 2 climate",
           "humidity_2": "Room 2 humidity sensor",
+          "icon_2": "Room 2 icon",
           "climate_3": "Room 3 climate",
           "humidity_3": "Room 3 humidity sensor",
+          "icon_3": "Room 3 icon",
           "climate_4": "Room 4 climate",
           "humidity_4": "Room 4 humidity sensor",
-          "outside_temperature_entity": "Outdoor temperature sensor",
-          "icon_1": "Room 1 icon",
-          "icon_2": "Room 2 icon",
-          "icon_3": "Room 3 icon",
           "icon_4": "Room 4 icon"
         }
       }

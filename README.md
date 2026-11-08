@@ -5,7 +5,7 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 ## Project contents
 
 - `display-1.yaml` — ESPHome display firmware.
-- `custom_components/heating_controller_history/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history.
+- `custom_components/heating_controller_history/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history, plus its own integration brand icon.
 - `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
 - `.github/workflows/validate-esphome.yml` — CI checks for the firmware, integration and deployment script.
 
@@ -19,17 +19,17 @@ After installing the integration, open:
 
 **Settings → Devices & services → Heating Controller → Configure**
 
-Choose between two and four rooms, then select a climate entity and optional humidity sensor for each room. The optional outdoor temperature sensor can also be selected there. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
+First choose between two and four rooms and, optionally, an outdoor temperature sensor. The next step shows only the climate, humidity and icon selectors for the selected number of rooms. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
 
-The four room selections are retained when changing the active room count. Only the first `room_count` entries are sent to the display. Room names come from each climate entity's `friendly_name`.
+Settings for disabled rooms are retained. For example, changing from three rooms to two hides the third room's selectors but preserves its climate, humidity and icon selections. Increasing the room count later restores those settings.
 
-Changes are read by the display automatically. They do not require a GitHub commit, ESPHome YAML edit, firmware compilation or reflash.
+Room names come from each climate entity's `friendly_name`. Changes are read by the display automatically; they do not require a GitHub commit, ESPHome YAML edit, firmware compilation or reflash.
 
 The display requests the configuration and current entity states through the ESPHome encrypted Native API response mechanism. Climate controls continue to call Home Assistant's `climate.set_temperature` and `climate.set_hvac_mode` actions for the currently selected entity.
 
-Each room also has a configurable icon in the same Configure form. The available choices are Home, Living room, Bedroom, Kitchen, Thermostat, Fan, Radiator, Fireplace, Cooling, Office, Server room, Swimming pool, Garage and Air conditioning. The firmware includes these icon assets; changing the selection takes effect without a reflash.
+Each room has a configurable icon. The available choices are Home, Living room, Bedroom, Kitchen, Thermostat, Fan, Radiator, Fireplace, Cooling, Office, Server room, Swimming pool, Garage and Air conditioning. The firmware includes these icon assets; changing the selection takes effect without a reflash.
 
-The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID and signal strength. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+The Home Assistant integration also includes a square brand icon in `custom_components/heating_controller_history/brand/icon.png`.
 
 ## History
 
@@ -45,7 +45,11 @@ The integration queries Home Assistant Recorder and returns 288 evenly spaced sa
 - Target temperature (`targets`)
 - HVAC activity (`activities`: 0 idle/off, 1 heating, 2 cooling, 3 fan/drying)
 
-Recorder must be enabled and retain the requested climate entity's history.
+Recorder reads run through Recorder's dedicated database executor. Recorder must be enabled and retain the requested climate entity's history.
+
+## Diagnostics
+
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID and signal strength. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
 
 ## Install or update
 

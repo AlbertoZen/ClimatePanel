@@ -34,59 +34,33 @@ DEFAULT_ICONS = ["home", "chef-hat", "bed", "thermostat"]
 DEFAULT_SETTINGS: dict[str, Any] = {
     "room_count": 3,
     "rooms": [
-        {"climate_entity": "climate.nest_thermostat", "humidity_entity": "sensor.living_room_sensor_humidity", "icon": "home"},
-        {"climate_entity": "climate.shed_fan_thermostat", "humidity_entity": None, "icon": "chef-hat"},
-        {"climate_entity": "climate.bedroom_heater", "humidity_entity": "sensor.bedroom_sensor_humidity", "icon": "bed"},
-        {"climate_entity": None, "humidity_entity": None, "icon": "thermostat"},
+        {
+            "climate_entity": "climate.nest_thermostat",
+            "humidity_entity": "sensor.living_room_sensor_humidity",
+            "icon": "home",
+        },
+        {
+            "climate_entity": "climate.shed_fan_thermostat",
+            "humidity_entity": None,
+            "icon": "chef-hat",
+        },
+        {
+            "climate_entity": "climate.bedroom_heater",
+            "humidity_entity": "sensor.bedroom_sensor_humidity",
+            "icon": "bed",
+        },
+        {
+            "climate_entity": None,
+            "humidity_entity": None,
+            "icon": "thermostat",
+        },
     ],
     "outside_temperature_entity": None,
 }
 
 
-def _normalise_input(user_input: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
-    """Validate enabled rooms and persist all four editable slots."""
-    try:
-        room_count = int(user_input.get("room_count", 3))
-    except (TypeError, ValueError):
-        return None, "invalid_count"
-
-    if room_count < 2 or room_count > 4:
-        return None, "invalid_count"
-
-    rooms: list[dict[str, Any]] = []
-    enabled_entities: list[str] = []
-    for index in range(1, 5):
-        climate_entity = user_input.get(f"climate_{index}") or None
-        humidity_entity = user_input.get(f"humidity_{index}") or None
-        icon = user_input.get(f"icon_{index}") or DEFAULT_ICONS[index - 1]
-        if icon not in {option["value"] for option in ICON_OPTIONS}:
-            return None, "invalid_icon"
-
-        if index <= room_count:
-            if not climate_entity:
-                return None, "missing_climate"
-            if climate_entity in enabled_entities:
-                return None, "duplicate_climates"
-            enabled_entities.append(climate_entity)
-
-        rooms.append(
-            {
-                "climate_entity": climate_entity,
-                "humidity_entity": humidity_entity,
-                "icon": icon,
-            }
-        )
-
-    return {
-        "room_count": room_count,
-        "rooms": rooms,
-        "outside_temperature_entity": user_input.get("outside_temperature_entity") or None,
-    }, None
-
-
-def _build_schema(current: dict[str, Any]) -> vol.Schema:
-    """Build the entity-selector form, prefilled with current choices."""
-    current_rooms = current.get("rooms") or DEFAULT_SETTINGS["rooms"]
+def _build_count_schema(current: dict[str, Any]) -> vol.Schema:
+    """Ask for the room count before displaying the room-specific fields."""
     schema: dict[Any, Any] = {
         vol.Required(
             "room_count", default=int(current.get("room_count", 3))
@@ -95,15 +69,31 @@ def _build_schema(current: dict[str, Any]) -> vol.Schema:
         )
     }
 
-    for index in range(1, 5):
+    outside_entity = current.get("outside_temperature_entity")
+    outside_key = (
+        vol.Optional("outside_temperature_entity", default=outside_entity)
+        if outside_entity
+        else vol.Optional("outside_temperature_entity")
+    )
+    schema[outside_key] = selector.EntitySelector({"domain": "sensor"})
+    return vol.Schema(schema)
+
+
+def _build_room_schema(current: dict[str, Any], room_count: int) -> vol.Schema:
+    """Build selectors only for the enabled rooms."""
+    current_rooms = current.get("rooms") or DEFAULT_SETTINGS["rooms"]
+    schema: dict[Any, Any] = {}
+
+    for index in range(1, room_count + 1):
         room = current_rooms[index - 1] if len(current_rooms) >= index else {}
         climate_entity = room.get("climate_entity")
         humidity_entity = room.get("humidity_entity")
+        icon = room.get("icon") or DEFAULT_ICONS[index - 1]
 
         climate_key = (
-            vol.Optional(f"climate_{index}", default=climate_entity)
+            vol.Required(f"climate_{index}", default=climate_entity)
             if climate_entity
-            else vol.Optional(f"climate_{index}")
+            else vol.Required(f"climate_{index}")
         )
         humidity_key = (
             vol.Optional(f"humidity_{index}", default=humidity_entity)
@@ -112,20 +102,70 @@ def _build_schema(current: dict[str, Any]) -> vol.Schema:
         )
         schema[climate_key] = selector.EntitySelector({"domain": "climate"})
         schema[humidity_key] = selector.EntitySelector({"domain": "sensor"})
-        icon = room.get("icon") or DEFAULT_ICONS[index - 1]
-        schema[vol.Optional(f"icon_{index}", default=icon)] = selector.SelectSelector(
-            {"options": ICON_OPTIONS, "mode": "dropdown"}
+        schema[vol.Required(f"icon_{index}", default=icon)] = (
+            selector.SelectSelector(
+                {"options": ICON_OPTIONS, "mode": "dropdown"}
+            )
         )
 
-    outside_entity = current.get("outside_temperature_entity")
-    outside_key = (
-        vol.Optional("outside_temperature_entity", default=outside_entity)
-        if outside_entity
-        else vol.Optional("outside_temperature_entity")
-    )
-    schema[outside_key] = selector.EntitySelector({"domain": "sensor"})
-
     return vol.Schema(schema)
+
+
+def _normalise_room_input(
+    current: dict[str, Any],
+    room_count: int,
+    user_input: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Merge visible room fields into the saved settings and validate them."""
+    if room_count < 2 or room_count > 4:
+        return None, "invalid_count"
+
+    existing_rooms = current.get("rooms") or DEFAULT_SETTINGS["rooms"]
+    rooms = [
+        dict(existing_rooms[index]) if index < len(existing_rooms) else {
+            "climate_entity": None,
+            "humidity_entity": None,
+            "icon": DEFAULT_ICONS[index],
+        }
+        for index in range(4)
+    ]
+    enabled_entities: list[str] = []
+    supported_icons = {option["value"] for option in ICON_OPTIONS}
+
+    for index in range(1, room_count + 1):
+        room = rooms[index - 1]
+        climate_key = f"climate_{index}"
+        humidity_key = f"humidity_{index}"
+        icon_key = f"icon_{index}"
+
+        climate_entity = user_input.get(climate_key) or room.get("climate_entity")
+        # An omitted optional humidity selector means the user left it empty.
+        humidity_entity = user_input.get(humidity_key)
+        icon = (
+            user_input.get(icon_key)
+            or room.get("icon")
+            or DEFAULT_ICONS[index - 1]
+        )
+
+        if not climate_entity:
+            return None, "missing_climate"
+        if climate_entity in enabled_entities:
+            return None, "duplicate_climates"
+        if icon not in supported_icons:
+            return None, "invalid_icon"
+
+        enabled_entities.append(climate_entity)
+        room.update(
+            {
+                "climate_entity": climate_entity,
+                "humidity_entity": humidity_entity or None,
+                "icon": icon,
+            }
+        )
+
+    settings = dict(current)
+    settings.update({"room_count": room_count, "rooms": rooms})
+    return settings, None
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -136,11 +176,49 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Create the single Heating Controller config entry."""
+        """Select the room count and then show only the required room slots."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            settings, error = _normalise_input(user_input)
-            if error is None and settings is not None:
+            try:
+                room_count = int(user_input.get("room_count", 3))
+            except (TypeError, ValueError):
+                room_count = 0
+
+            if room_count < 2 or room_count > 4:
+                errors["base"] = "invalid_count"
+            else:
+                outside_entity = (
+                    user_input.get("outside_temperature_entity")
+                    if "outside_temperature_entity" in user_input
+                    else DEFAULT_SETTINGS.get("outside_temperature_entity")
+                )
+                self._pending_settings = {
+                    **DEFAULT_SETTINGS,
+                    "room_count": room_count,
+                    "rooms": [dict(room) for room in DEFAULT_SETTINGS["rooms"]],
+                    "outside_temperature_entity": outside_entity or None,
+                }
+                return await self.async_step_rooms()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_build_count_schema(DEFAULT_SETTINGS),
+            errors=errors,
+        )
+
+    async def async_step_rooms(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Configure only the enabled rooms."""
+        current = getattr(self, "_pending_settings", DEFAULT_SETTINGS)
+        room_count = int(current.get("room_count", 3))
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            settings, error = _normalise_room_input(
+                current, room_count, user_input
+            )
+            if settings is not None and error is None:
                 await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
@@ -150,8 +228,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = error or "invalid_count"
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=_build_schema(DEFAULT_SETTINGS),
+            step_id="rooms",
+            data_schema=_build_room_schema(current, room_count),
             errors=errors,
         )
 
@@ -168,18 +246,65 @@ class HeatingControllerOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Edit configured climate rooms and sensors."""
+        """Choose the number of visible room slots."""
         current = dict(self.config_entry.options or self.config_entry.data)
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            settings, error = _normalise_input(user_input)
-            if error is None and settings is not None:
+            try:
+                room_count = int(user_input.get("room_count", 3))
+            except (TypeError, ValueError):
+                room_count = 0
+
+            if room_count < 2 or room_count > 4:
+                errors["base"] = "invalid_count"
+            else:
+                outside_entity = (
+                    user_input.get("outside_temperature_entity")
+                    if "outside_temperature_entity" in user_input
+                    else current.get("outside_temperature_entity")
+                )
+                self._pending_settings = {
+                    **current,
+                    "room_count": room_count,
+                    "rooms": [
+                        dict(room)
+                        for room in (
+                            current.get("rooms") or DEFAULT_SETTINGS["rooms"]
+                        )
+                    ],
+                    "outside_temperature_entity": outside_entity or None,
+                }
+                return await self.async_step_rooms()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_build_count_schema(current),
+            errors=errors,
+        )
+
+    async def async_step_rooms(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Edit the enabled room assignments and retain disabled room settings."""
+        current = getattr(
+            self,
+            "_pending_settings",
+            dict(self.config_entry.options or self.config_entry.data),
+        )
+        room_count = int(current.get("room_count", 3))
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            settings, error = _normalise_room_input(
+                current, room_count, user_input
+            )
+            if settings is not None and error is None:
                 return self.async_create_entry(title="", data=settings)
             errors["base"] = error or "invalid_count"
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=_build_schema(current),
+            step_id="rooms",
+            data_schema=_build_room_schema(current, room_count),
             errors=errors,
         )
