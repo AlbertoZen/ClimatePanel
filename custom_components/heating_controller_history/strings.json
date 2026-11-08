@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Heating Controller",
+        "description": "Choose the climate entities and optional humidity sensors shown on the thermostat display. The first two to four rooms are used in the order shown.",
+        "data": {
+          "room_count": "Number of rooms",
+          "climate_1": "Room 1 climate (Master)",
+          "humidity_1": "Room 1 humidity sensor",
+          "climate_2": "Room 2 climate",
+          "humidity_2": "Room 2 humidity sensor",
+          "climate_3": "Room 3 climate",
+          "humidity_3": "Room 3 humidity sensor",
+          "climate_4": "Room 4 climate",
+          "humidity_4": "Room 4 humidity sensor",
+          "outside_temperature_entity": "Outdoor temperature sensor"
+        }
+      }
+    },
+    "error": {
+      "invalid_count": "Choose between two and four rooms.",
+      "missing_climate": "Select a climate entity for every enabled room.",
+      "duplicate_climates": "Each room must use a different climate entity."
+    },
+    "abort": {
+      "already_configured": "Heating Controller is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Heating Controller rooms",
+        "description": "Changes are sent to the display automatically. No firmware edit, GitHub commit or ESPHome recompile is required. Only the first selected number of rooms are active; all four selections are retained.",
+        "data": {
+          "room_count": "Number of rooms",
+          "climate_1": "Room 1 climate (Master)",
+          "humidity_1": "Room 1 humidity sensor",
+          "climate_2": "Room 2 climate",
+          "humidity_2": "Room 2 humidity sensor",
+          "climate_3": "Room 3 climate",
+          "humidity_3": "Room 3 humidity sensor",
+          "climate_4": "Room 4 climate",
+          "humidity_4": "Room 4 humidity sensor",
+          "outside_temperature_entity": "Outdoor temperature sensor"
+        }
+      }
+    },
+    "error": {
+      "invalid_count": "Choose between two and four rooms.",
+      "missing_climate": "Select a climate entity for every enabled room.",
+      "duplicate_climates": "Each room must use a different climate entity."
+    }
+  }
+}
