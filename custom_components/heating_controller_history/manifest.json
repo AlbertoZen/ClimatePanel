@@ -1,8 +1,9 @@
 {
   "domain": "heating_controller_history",
-  "name": "Heating Controller History Bridge",
-  "version": "1.0.1",
+  "name": "Heating Controller",
+  "version": "2.0.0",
   "documentation": "https://www.home-assistant.io/integrations/history/",
+  "config_flow": true,
   "dependencies": [
     "recorder"
   ],
