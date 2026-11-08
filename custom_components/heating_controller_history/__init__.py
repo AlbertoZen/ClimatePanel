@@ -79,6 +79,7 @@ def _climate_payload(hass: HomeAssistant, room: dict[str, Any]) -> dict[str, Any
     return {
         "entity_id": entity_id,
         "name": attributes.get("friendly_name") or entity_id.split(".", 1)[-1],
+        "icon": str(room.get("icon") or "home"),
         "current_temperature": _number(attributes.get("current_temperature")),
         "target_temperature": _number(attributes.get("temperature")),
         "target_temp_low": _number(attributes.get("target_temp_low")),
