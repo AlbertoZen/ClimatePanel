@@ -89,7 +89,7 @@ git -C "$REPO" pull --ff-only origin main
 echo
 echo "2. Checking local secrets..."
 for secret in display_1__encryption_password wifi_ssid wifi_password; do
-  grep -Eq "^\${secret}[[:space:]]*:" "$SECRETS" || fail "Required local secret is missing: $secret"
+  grep -Eq "^${secret}[[:space:]]*:" "$SECRETS" || fail "Required local secret is missing: $secret"
   echo "  OK: $secret"
 done
 
