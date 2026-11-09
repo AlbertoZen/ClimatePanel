@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "71"
+  ui_revision: "72"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -254,8 +254,9 @@ output:
   - platform: ledc
     id: backlight_output
     pin: 38
-    # 15kHz moves the backlight PWM above the visible flicker range.
-    frequency: 15kHz
+    # 20kHz is the upper frequency noted for newer 4848S040 backlight revisions.
+    # ESP32-S3 retains 12-bit PWM resolution at approximately this frequency.
+    frequency: 20kHz
     # Allow very low backlight levels while keeping zero as fully off.
     min_power: 0.001
     zero_means_zero: true
