@@ -93,7 +93,7 @@ jobs:
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
           assert 'ui_revision: "72"' in firmware
-          assert "frequency: 20kHz" in firmware
+          assert "frequency: 19531Hz" in firmware
           clock_outside = firmware.split('id: lbl_clock_screen_outside', 1)[1].split('PAGE 4: HISTORY', 1)[0]
           assert 'text_font: font_medium' in clock_outside
           assert 'selector.EntitySelector({"domain": ["weather", "sensor"]})' in config_flow
