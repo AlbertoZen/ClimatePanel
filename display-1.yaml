@@ -519,7 +519,7 @@ font:
     id: font_small
     size: 16
     bpp: 4
-    glyphs: '0123456789.-+/°%•()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
+    glyphs: '0123456789.-+/°%•()[]ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
   - file: "gfonts://Google Sans Flex@500"
     id: font_medium
     size: 22
