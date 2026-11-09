@@ -89,6 +89,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: setpoint_arc_user_changed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: ha_client_ip
     type: std::string
     restore_value: no
@@ -2620,20 +2624,37 @@ lvgl:
                   knob:
                     bg_color: 0xFFFFFF
                     pad_all: 4
-                  on_value:
+                  # on_change is user-interaction-only. Unlike on_value, it is
+                  # not fired by lvgl.arc.update during display refreshes.
+                  on_change:
                     - lambda: |-
+                        const int next_tenths = ((int)round(x / 5.0f)) * 5;
+                        if (next_tenths == id(active_target_tenths)) return;
                         id(setpoint_adjusting) = true;
-                        id(active_target_tenths) = ((int)round(x / 5.0f)) * 5;
+                        id(setpoint_arc_user_changed) = true;
+                        id(active_target_tenths) = next_tenths;
+                        ESP_LOGD("setpoint_diag",
+                                 "Arc user interaction: raw=%d target=%.1f",
+                                 (int)x, next_tenths / 10.0f);
                     - script.execute: render_setpoint
                   on_release:
-                    - script.execute:
-                        id: debounced_send_setpoint
-                        climate_entity: !lambda 'return id(active_climate_entity);'
-                        target_tenths: !lambda 'return id(active_target_tenths);'
-                        dual_setpoint: !lambda 'return !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));'
-                        edit_high: !lambda 'return id(edit_high_setpoint);'
-                        current_low: !lambda 'return id(active_target_temp_low);'
-                        current_high: !lambda 'return id(active_target_temp_high);'
+                    - if:
+                        condition:
+                          lambda: 'return id(setpoint_arc_user_changed);'
+                        then:
+                          - lambda: |-
+                              id(setpoint_arc_user_changed) = false;
+                              ESP_LOGI("setpoint_diag",
+                                       "Arc released; sending final target=%.1f",
+                                       id(active_target_tenths) / 10.0f);
+                          - script.execute:
+                              id: debounced_send_setpoint
+                              climate_entity: !lambda 'return id(active_climate_entity);'
+                              target_tenths: !lambda 'return id(active_target_tenths);'
+                              dual_setpoint: !lambda 'return !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));'
+                              edit_high: !lambda 'return id(edit_high_setpoint);'
+                              current_low: !lambda 'return id(active_target_temp_low);'
+                              current_high: !lambda 'return id(active_target_temp_high);'
 
               # Current room temperature marker, positioned dynamically along the arc.
               - obj:
