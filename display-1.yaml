@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "70"
+  ui_revision: "71"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -254,9 +254,8 @@ output:
   - platform: ledc
     id: backlight_output
     pin: 38
-    # 1000Hz (or 600Hz) eliminates the 150Hz visual shimmer.
-    # You can also use 20000Hz on newer 4848S040 batches for silent operation.
-    frequency: 600Hz
+    # 15kHz moves the backlight PWM above the visible flicker range.
+    frequency: 15kHz
     # Allow very low backlight levels while keeping zero as fully off.
     min_power: 0.001
     zero_means_zero: true
