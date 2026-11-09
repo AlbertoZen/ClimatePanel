@@ -254,9 +254,9 @@ output:
   - platform: ledc
     id: backlight_output
     pin: 38
-    # 20kHz is the upper frequency noted for newer 4848S040 backlight revisions.
-    # ESP32-S3 retains 12-bit PWM resolution at approximately this frequency.
-    frequency: 20kHz
+    # 19.531kHz is ESPHome’s recommended 12-bit PWM point for the ESP32-S3.
+    # This is the practical high-frequency limit while retaining fine brightness control.
+    frequency: 19531Hz
     # Allow very low backlight levels while keeping zero as fully off.
     min_power: 0.001
     zero_means_zero: true
