@@ -92,8 +92,9 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'ui_revision: "76"' in firmware
-          assert "lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_COVER, LV_PART_MAIN);" in firmware
+          assert 'ui_revision: "77"' in firmware
+          assert "                  shadow_width: 0" in firmware
+          assert "lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_COVER, LV_PART_MAIN);" not in firmware
           assert "lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);" in firmware
           assert "default_transition_length: 2s" in firmware
           assert "frequency: 19531Hz" in firmware
