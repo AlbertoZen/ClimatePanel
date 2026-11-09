@@ -2696,9 +2696,6 @@ lvgl:
                               current_low: !lambda 'return id(active_target_temp_low);'
                               current_high: !lambda 'return id(active_target_temp_high);'
                               source: "arc"
-                         source: "plus"
-                         source: "minus"
-                              source: "arc"
 
               # Current room temperature marker, positioned dynamically along the arc.
               - obj:
