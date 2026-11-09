@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "72"
+  ui_revision: "73"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -1805,6 +1805,18 @@ script:
           id: img_history_close
           image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
           image_recolor_opa: COVER
+      # The clock screensaver always uses its own dark palette. This is applied
+      # after the global theme so Manual/Sun changes only affect the thermostat UI.
+      - lambda: |-
+          const lv_color_t clock_bg = lv_color_hex(0x111318);
+          const lv_color_t clock_primary = lv_color_hex(0xE2E2E9);
+          const lv_color_t clock_secondary = lv_color_hex(0xC4C6D0);
+          lv_obj_set_style_bg_color(id(page_clock_screen)->obj, clock_bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(page_clock_screen)->obj, LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_time), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_date), clock_secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_env), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_outside), clock_secondary, LV_PART_MAIN);
       - script.execute: update_current_temp_dot
 
   - id: apply_sun_theme
