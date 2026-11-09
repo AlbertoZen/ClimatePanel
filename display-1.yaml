@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "75"
+  ui_revision: "76"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -2127,11 +2127,6 @@ lvgl:
         lv_obj_add_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
 
-        // Keep dynamically drawn history content inside the rounded popup outline.
-        // The chart container nearly reaches the lower edge, so clipping prevents
-        // child pixels from showing through the popup's rounded corners.
-        lv_obj_set_style_clip_corner(id(history_popup), true, LV_PART_MAIN);
-
         // Build a transparent chart directly on the page. Activity shading is
         // drawn by a sibling background layer created before the chart, so the
         // grid and temperature lines remain crisp above it.
@@ -3020,6 +3015,8 @@ lvgl:
               - lambda: |-
                   id(history_page_visible) = false;
                   lv_obj_add_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
+                  // Diagnostics keeps the normal translucent dimmer.
+                  lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
                   lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
@@ -3107,6 +3104,9 @@ lvgl:
                   lv_obj_clear_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_add_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
                   lv_label_set_text(id(lbl_history_loading), "Loading history...");
+                  // Use a fully opaque black surround so the light page cannot bleed
+                  // through the rounded history popup corners.
+                  lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_COVER, LV_PART_MAIN);
                   lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
