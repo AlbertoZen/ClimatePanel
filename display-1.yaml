@@ -3173,8 +3173,8 @@ lvgl:
                         pad_all: 0
                         widgets:
                           - obj:
-                            x: 0
-                            y: 0
+                              x: 0
+                              y: 0
                               width: 408
                               height: 36
                               bg_opa: TRANSP
@@ -3203,8 +3203,8 @@ lvgl:
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                           - obj:
-                            x: 0
-                            y: 42
+                              x: 0
+                              y: 42
                               width: 408
                               height: 36
                               bg_opa: TRANSP
@@ -3233,8 +3233,8 @@ lvgl:
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                           - obj:
-                            x: 0
-                            y: 84
+                              x: 0
+                              y: 84
                               width: 408
                               height: 36
                               bg_opa: TRANSP
@@ -3263,8 +3263,8 @@ lvgl:
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                           - obj:
-                            x: 0
-                            y: 126
+                              x: 0
+                              y: 126
                               width: 408
                               height: 36
                               bg_opa: TRANSP
@@ -3293,8 +3293,8 @@ lvgl:
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                           - obj:
-                            x: 0
-                            y: 168
+                              x: 0
+                              y: 168
                               width: 408
                               height: 36
                               bg_opa: TRANSP
@@ -3323,8 +3323,8 @@ lvgl:
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                           - obj:
-                            x: 0
-                            y: 210
+                              x: 0
+                              y: 210
                               width: 408
                               height: 36
                               bg_opa: TRANSP
