@@ -1,5 +1,14 @@
 # Heating Controller
 
+**Release: 2026.11.09**
+
+This release includes the thermostat display setpoint-control improvements:
+- Plus/minus and arc adjustments update locally while the user is interacting.
+- Rapid adjustments are debounced; only the final setpoint is sent to Home Assistant.
+- Arc dragging is protected against stale Home Assistant refreshes reverting the selected value.
+- The display waits for Home Assistant's action response and live climate state confirmation.
+
+
 ESPHome firmware and the companion Home Assistant integration for the Guition ESP32-S3-4848S040 thermostat display.
 
 ## Project contents
