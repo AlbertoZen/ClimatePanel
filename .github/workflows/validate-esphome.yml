@@ -92,7 +92,7 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' in firmware
-          assert 'ui_revision: "68"' in firmware
+          assert 'ui_revision: "69"' in firmware
           assert 'selector.EntitySelector({"domain": ["weather", "sensor"]})' in config_flow
           assert 'outside_attributes.get("temperature")' in integration
           assert '_temperature_celsius' in integration
