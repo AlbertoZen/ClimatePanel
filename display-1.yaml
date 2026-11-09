@@ -2695,6 +2695,7 @@ lvgl:
                               edit_high: !lambda 'return id(edit_high_setpoint);'
                               current_low: !lambda 'return id(active_target_temp_low);'
                               current_high: !lambda 'return id(active_target_temp_high);'
+                              source: "arc"
                          source: "plus"
                          source: "minus"
                               source: "arc"
@@ -2886,6 +2887,7 @@ lvgl:
                         edit_high: !lambda 'return id(edit_high_setpoint);'
                         current_low: !lambda 'return id(active_target_temp_low);'
                         current_high: !lambda 'return id(active_target_temp_high);'
+                        source: "minus"
                   widgets:
                     - label:
                         id: lbl_step_down
@@ -2929,6 +2931,7 @@ lvgl:
                         edit_high: !lambda 'return id(edit_high_setpoint);'
                         current_low: !lambda 'return id(active_target_temp_low);'
                         current_high: !lambda 'return id(active_target_temp_high);'
+                        source: "plus"
                   widgets:
                     - label:
                         id: lbl_step_up
