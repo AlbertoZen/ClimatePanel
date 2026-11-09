@@ -2702,7 +2702,7 @@ lvgl:
                         then:
                           - lambda: |-
                               id(setpoint_arc_user_changed) = false;
-                              id(setpoint_requests_pending)++;
+                              id(setpoint_requests_pending) = 1;
                               id(setpoint_adjusting) = true;
                               ESP_LOGI("setpoint_diag",
                                        "Arc released; scheduling final target=%.1f pending=%d",
@@ -2890,7 +2890,7 @@ lvgl:
                         if (next_val < 100) next_val = 100;
                         id(active_target_tenths) = next_val;
                         id(setpoint_expected_tenths) = next_val;
-                        id(setpoint_requests_pending)++;
+                        id(setpoint_requests_pending) = 1;
                         ESP_LOGI("setpoint_diag",
                                  "Minus button: local target=%.1f pending=%d",
                                  next_val / 10.0f, id(setpoint_requests_pending));
@@ -2934,7 +2934,7 @@ lvgl:
                         int next_val = id(active_target_tenths) + 5;
                         if (next_val > 320) next_val = 320;
                         id(active_target_tenths) = next_val;
-                        id(setpoint_requests_pending)++;
+                        id(setpoint_requests_pending) = 1;
                         ESP_LOGI("setpoint_diag",
                                  "Plus button: local target=%.1f pending=%d",
                                  next_val / 10.0f, id(setpoint_requests_pending));
