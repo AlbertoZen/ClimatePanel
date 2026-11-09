@@ -658,6 +658,49 @@ text_sensor:
 # Room icons available in Home Assistant. Icon choice is stored in the integration
 # and applied to the active room without changing the display layout.
 image:
+  # HVAC mode icons (Material Design Icons, rasterised for the TFT).
+  - platform: file
+    file: mdi:power
+    id: hvac_icon_off
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:fire
+    id: hvac_icon_heat
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:snowflake
+    id: hvac_icon_cool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:thermostat-auto
+    id: hvac_icon_heat_cool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:autorenew
+    id: hvac_icon_auto
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:water-percent
+    id: hvac_icon_dry
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:fan
+    id: hvac_icon_fan_only
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
   - platform: file
     file: mdi:home
     id: room_icon_home
@@ -2827,10 +2870,10 @@ lvgl:
                   widgets:
                     - button:
                         id: btn_mode_off
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 24
-                        pad_right: 24
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2842,19 +2885,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "off"
                         widgets:
-                          - label:
-                              id: lbl_mode_off
+                          - image:
+                              src: hvac_icon_off
                               align: CENTER
-                              text: "Off"
-                              text_font: font_small
-                              text_color: 0xE2E2E9
+                              image_recolor: 0xE2E2E9
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_heat
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 24
-                        pad_right: 24
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2866,19 +2908,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "heat"
                         widgets:
-                          - label:
-                              id: lbl_mode_heat
+                          - image:
+                              src: hvac_icon_heat
                               align: CENTER
-                              text: "Heat"
-                              text_font: font_small
-                              text_color: 0xE2E2E9
+                              image_recolor: 0xFF8A65
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_cool
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 24
-                        pad_right: 24
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2891,19 +2932,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "cool"
                         widgets:
-                          - label:
-                              id: lbl_mode_cool
+                          - image:
+                              src: hvac_icon_cool
                               align: CENTER
-                              text: "Cool"
-                              text_font: font_small
-                              text_color: 0x8AD5FF
+                              image_recolor: 0x58B9F7
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_heat_cool
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 20
-                        pad_right: 20
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2916,19 +2956,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "heat_cool"
                         widgets:
-                          - label:
-                              id: lbl_mode_heat_cool
+                          - image:
+                              src: hvac_icon_heat_cool
                               align: CENTER
-                              text: "Heat • Cool"
-                              text_font: font_small
-                              text_color: 0xA6F2D1
+                              image_recolor: 0xA6F2D1
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_auto
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 22
-                        pad_right: 22
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2941,19 +2980,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "auto"
                         widgets:
-                          - label:
-                              id: lbl_mode_auto
+                          - image:
+                              src: hvac_icon_auto
                               align: CENTER
-                              text: "Auto"
-                              text_font: font_small
-                              text_color: 0xA6F2D1
+                              image_recolor: 0xA6F2D1
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_dry
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 20
-                        pad_right: 20
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2966,19 +3004,18 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "dry"
                         widgets:
-                          - label:
-                              id: lbl_mode_dry
+                          - image:
+                              src: hvac_icon_dry
                               align: CENTER
-                              text: "Dry"
-                              text_font: font_small
-                              text_color: 0xEAB2FF
+                              image_recolor: 0xEAB2FF
+                              image_recolor_opa: COVER
 
                     - button:
                         id: btn_mode_fan_only
-                        width: SIZE_CONTENT
+                        width: 44
                         height: 44
-                        pad_left: 20
-                        pad_right: 20
+                        pad_left: 0
+                        pad_right: 0
                         bg_color: 0x282A34
                         shadow_width: 0
                         radius: 22
@@ -2991,12 +3028,11 @@ lvgl:
                               id: send_hvac_mode
                               hvac_mode: "fan_only"
                         widgets:
-                          - label:
-                              id: lbl_mode_fan_only
+                          - image:
+                              src: hvac_icon_fan_only
                               align: CENTER
-                              text: "Fan"
-                              text_font: font_small
-                              text_color: 0x89F8EC
+                              image_recolor: 0x89F8EC
+                              image_recolor_opa: COVER
 
         # Temporary raster layers used only during a climate transition.
         # They are placed above the live content but below the fixed chevrons and clock.
