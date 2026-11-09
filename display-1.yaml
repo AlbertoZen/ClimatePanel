@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "81"
+  ui_revision: "82"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -1921,38 +1921,57 @@ script:
                   }
                 }
 
-                int axis_min = 15;
-                int axis_max = 35;
-                int axis_step = 5;
+                // Use a compact automatic envelope. Eight percent padding (with a
+                // 0.5 C minimum) prevents the curves touching the chart edge without
+                // wasting a large part of the plot on empty temperature range.
+                int axis_min_tenths = 150;
+                int axis_max_tenths = 250;
+                int axis_step_tenths = 25;
                 if (have_history_range) {
-                  const float padding = fmaxf(1.0f, (data_max - data_min) * 0.20f);
-                  const float padded_span = (data_max - data_min) + 2.0f * padding;
-                  const float raw_step = padded_span / 4.0f;
-                  axis_step = (raw_step <= 1.0f) ? 1 :
-                              (raw_step <= 2.0f) ? 2 :
-                              (raw_step <= 5.0f) ? 5 :
-                              (raw_step <= 10.0f) ? 10 :
-                              (raw_step <= 20.0f) ? 20 :
-                              (int)ceilf(raw_step / 10.0f) * 10;
-                  axis_min = (int)floorf((data_min - padding) / axis_step) * axis_step;
-                  axis_max = (int)ceilf((data_max + padding) / axis_step) * axis_step;
-                  if (axis_max <= axis_min) axis_max = axis_min + axis_step * 4;
+                  const float data_span = fmaxf(0.0f, data_max - data_min);
+                  const float padding = fmaxf(0.5f, data_span * 0.08f);
+                  const float padded_min = data_min - padding;
+                  const float padded_max = data_max + padding;
+                  const float raw_step_tenths = ((padded_max - padded_min) * 10.0f) / 4.0f;
+                  axis_step_tenths = (raw_step_tenths <= 5.0f) ? 5 :
+                                     (raw_step_tenths <= 10.0f) ? 10 :
+                                     (raw_step_tenths <= 20.0f) ? 20 :
+                                     (raw_step_tenths <= 25.0f) ? 25 :
+                                     (raw_step_tenths <= 50.0f) ? 50 :
+                                     (raw_step_tenths <= 100.0f) ? 100 :
+                                     (raw_step_tenths <= 200.0f) ? 200 :
+                                     (raw_step_tenths <= 250.0f) ? 250 :
+                                     (raw_step_tenths <= 500.0f) ? 500 :
+                                     (raw_step_tenths <= 1000.0f) ? 1000 :
+                                     (int)ceilf(raw_step_tenths / 1000.0f) * 1000;
+                  axis_min_tenths = (int)floorf((padded_min * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  axis_max_tenths = (int)ceilf((padded_max * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  if (axis_max_tenths <= axis_min_tenths)
+                    axis_max_tenths = axis_min_tenths + axis_step_tenths * 4;
                 }
 
-                // The five-to-nine tick labels live in static storage because
-                // LVGL keeps the text-source pointer after this callback returns.
+                // Keep the tick labels in static storage because LVGL retains
+                // the text-source pointer after this callback returns.
                 static char temperature_label_storage[16][8];
                 static const char *temperature_tick_labels[17];
-                const int temperature_tick_count = ((axis_max - axis_min) / axis_step) + 1;
+                const int temperature_tick_count =
+                    ((axis_max_tenths - axis_min_tenths) / axis_step_tenths) + 1;
                 for (int tick = 0; tick < temperature_tick_count && tick < 16; tick++) {
-                  snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
-                           "%d", axis_min + tick * axis_step);
+                  const float tick_c =
+                      (axis_min_tenths + tick * axis_step_tenths) / 10.0f;
+                  if (fabsf(tick_c - roundf(tick_c)) < 0.05f) {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%d", (int)lroundf(tick_c));
+                  } else {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%.1f", tick_c);
+                  }
                   temperature_tick_labels[tick] = temperature_label_storage[tick];
                 }
                 temperature_tick_labels[temperature_tick_count < 16 ? temperature_tick_count : 16] = nullptr;
-                lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, axis_min * 10, axis_max * 10);
+                lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, axis_min_tenths, axis_max_tenths);
                 if (id(history_scale_temperature) != nullptr) {
-                  lv_scale_set_range(id(history_scale_temperature), axis_min, axis_max);
+                  lv_scale_set_range(id(history_scale_temperature), axis_min_tenths, axis_max_tenths);
                   lv_scale_set_total_tick_count(id(history_scale_temperature), temperature_tick_count);
                   lv_scale_set_major_tick_every(id(history_scale_temperature), 1);
                   lv_scale_set_text_src(id(history_scale_temperature), temperature_tick_labels);
@@ -2171,18 +2190,18 @@ lvgl:
         lv_obj_set_style_bg_opa(chart, LV_OPA_TRANSP, LV_PART_INDICATOR);
         lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
         lv_chart_set_point_count(chart, 288);
-        lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, 150, 350);
+        lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, 150, 250);
         lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
         lv_chart_set_div_line_count(chart, 5, 5);
 
         // Single Y axis: room and target temperature in degrees Celsius.
-        static const char *temperature_tick_labels[] = {"15", "20", "25", "30", "35", nullptr};
+        static const char *temperature_tick_labels[] = {"15", "17.5", "20", "22.5", "25", nullptr};
         lv_obj_t *temperature_scale = lv_scale_create(id(history_chart_container));
         id(history_scale_temperature) = temperature_scale;
         lv_obj_set_size(temperature_scale, 36, 342);
         lv_obj_set_pos(temperature_scale, 0, 6);
         lv_scale_set_mode(temperature_scale, LV_SCALE_MODE_VERTICAL_LEFT);
-        lv_scale_set_range(temperature_scale, 15, 35);
+        lv_scale_set_range(temperature_scale, 150, 250);
         lv_scale_set_total_tick_count(temperature_scale, 5);
         lv_scale_set_major_tick_every(temperature_scale, 1);
         lv_scale_set_label_show(temperature_scale, true);
@@ -3442,7 +3461,9 @@ lvgl:
                         align: TOP_LEFT
                         x: 8
                         y: 60
-                        text: "°C"
+                        width: 36
+                        text_align: RIGHT
+                        text: "[°C]"
                         text_font: font_small
                         text_color: 0xC4C6D0
                     - label:
@@ -3469,9 +3490,9 @@ lvgl:
                               id: lbl_history_now
                               align: BOTTOM_RIGHT
                               x: -8
-                              y: -6
+                              y: -4
                               width: 40
-                              height: 20
+                              height: 34
                               text: "Now"
                               text_align: RIGHT
                               text_font: font_small
