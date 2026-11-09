@@ -49,6 +49,17 @@ def _number(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
+def _temperature_celsius(value: Any, unit: Any) -> float | None:
+    """Convert a temperature value to Celsius for the fixed display units."""
+    temperature = _number(value)
+    if temperature is None:
+        return None
+    normalized_unit = str(unit or "").strip().lower().replace("°", "")
+    if normalized_unit in {"f", "fahrenheit"}:
+        return (temperature - 32.0) * (5.0 / 9.0)
+    return temperature
+
+
 def _state_attributes(state: Any) -> dict[str, Any]:
     """Return state attributes as a plain dictionary."""
     attributes = getattr(state, "attributes", None)
@@ -121,7 +132,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if outside_entity:
             outside_state = hass.states.get(str(outside_entity))
             if outside_state is not None:
-                outside_temperature = _number(outside_state.state)
+                outside_attributes = _state_attributes(outside_state)
+                if str(outside_entity).startswith("weather."):
+                    # Weather entities expose current outdoor temperature as
+                    # an attribute; the entity state itself is a condition.
+                    outside_temperature = _temperature_celsius(
+                        outside_attributes.get("temperature"),
+                        outside_attributes.get("temperature_unit")
+                        or hass.config.units.temperature_unit,
+                    )
+                else:
+                    # Backwards compatibility for existing sensor.* selections.
+                    outside_temperature = _temperature_celsius(
+                        outside_state.state,
+                        outside_attributes.get("unit_of_measurement")
+                        or hass.config.units.temperature_unit,
+                    )
 
         return {
             "room_count": room_count,
