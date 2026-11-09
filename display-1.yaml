@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "76"
+  ui_revision: "77"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -3104,9 +3104,8 @@ lvgl:
                   lv_obj_clear_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_add_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
                   lv_label_set_text(id(lbl_history_loading), "Loading history...");
-                  // Use a fully opaque black surround so the light page cannot bleed
-                  // through the rounded history popup corners.
-                  lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_COVER, LV_PART_MAIN);
+                  // Backdrop opacity is already set to 60% by the theme and overlay defaults.
+                  // Leave it unchanged so transparency is present from the first frame.
                   lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
@@ -3383,7 +3382,8 @@ lvgl:
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0x3B3E49
-                  shadow_width: 18
+                  # The panel nearly fills the overlay; a wide shadow is clipped at screen edges.
+                  shadow_width: 0
                   pad_all: 0
                   clickable: true
                   hidden: true
