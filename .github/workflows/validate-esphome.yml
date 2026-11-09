@@ -56,7 +56,7 @@ jobs:
           manifest = json.loads((component / "manifest.json").read_text())
           assert manifest["domain"] == "heating_controller_history"
           assert manifest["name"] == "Heating Controller"
-          assert manifest["version"] == "2.1.1"
+          assert manifest["version"] == "2.1.2"
           assert manifest["config_flow"] is True
 
           services = yaml.safe_load((component / "services.yaml").read_text())
@@ -91,8 +91,13 @@ jobs:
           assert icon_bytes[:8] == bytes.fromhex("89504e470d0a1a0a")
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
+          assert 'id: lbl_outside_temperature' in firmware
+          assert 'ui_revision: "68"' in firmware
+          assert 'selector.EntitySelector({"domain": ["weather", "sensor"]})' in config_flow
+          assert 'outside_attributes.get("temperature")' in integration
+          assert '_temperature_celsius' in integration
 
-          print("Home Assistant integration, dynamic room configuration, brand icon and diagnostics are valid.")
+          print("Home Assistant integration, dynamic room configuration, brand icon, diagnostics and outdoor weather support are valid.")
           PY
 
       - name: Validate ESPHome configuration
