@@ -75,7 +75,9 @@ def _build_count_schema(current: dict[str, Any]) -> vol.Schema:
         if outside_entity
         else vol.Optional("outside_temperature_entity")
     )
-    schema[outside_key] = selector.EntitySelector({"domain": "sensor"})
+    # Weather entities expose the current temperature as an attribute. Keep
+    # sensor entities selectable so existing installations remain compatible.
+    schema[outside_key] = selector.EntitySelector({"domain": ["weather", "sensor"]})
     return vol.Schema(schema)
 
 
