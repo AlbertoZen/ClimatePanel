@@ -1708,6 +1708,19 @@ script:
           style_history_scale(id(history_scale_temperature));
           style_history_scale(id(history_scale_time));
 
+          // Subtle inner-dial tint follows active HVAC operation; the status chip is unchanged.
+          lv_color_t inner_tint = lv_color_hex(dark ? 0xFF8A65 : 0xD85B32);
+          if (current_action == "cooling") {
+            inner_tint = lv_color_hex(dark ? 0x58B9F7 : 0x1686B8);
+          } else if (current_action == "fan" || current_action == "drying") {
+            inner_tint = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          }
+          const bool hvac_active = current_action == "heating" || current_action == "cooling" ||
+                                  current_action == "fan" || current_action == "drying";
+          lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(climate_arc_inner_tint), hvac_active ? LV_OPA_10 : LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_invalidate(id(climate_arc_inner_tint));
+
           lv_obj_set_style_arc_color(id(climate_arc), lv_color_hex(dark ? 0x22242E : 0xE1E3EA), LV_PART_MAIN);
           lv_color_t indicator = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
           const bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
@@ -2496,6 +2509,20 @@ lvgl:
                   hidden: true
                   image_recolor: 0xE2E2E9
                   image_recolor_opa: COVER
+              # Subtle status tint inside the thermostat dial, behind the arc.
+              - obj:
+                  id: climate_arc_inner_tint
+                  align: CENTER
+                  y: 2
+                  width: 320
+                  height: 320
+                  radius: 160
+                  bg_color: 0xFF8A65
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  clickable: false
+
               - arc:
                   id: climate_arc
                   align: CENTER
