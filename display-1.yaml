@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "82"
+  ui_revision: "83"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -3459,7 +3459,7 @@ lvgl:
                     - label:
                         id: lbl_history_axis_temp
                         align: TOP_LEFT
-                        x: 8
+                        x: 4
                         y: 60
                         width: 36
                         text_align: RIGHT
