@@ -93,6 +93,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: setpoint_requests_pending
+    type: int
+    restore_value: no
+    initial_value: '0'
   - id: ha_client_ip
     type: std::string
     restore_value: no
@@ -2150,7 +2154,11 @@ script:
       - script.execute: update_clock_environment
 
   - id: debounced_send_setpoint
-    mode: restart
+    # Do not restart an in-flight Home Assistant call. Nest may take many
+    # seconds to finish a climate.set_temperature action; queued mode preserves
+    # command order and prevents intermediate requests completing out of order.
+    mode: queued
+    max_runs: 20
     parameters:
       climate_entity: string
       target_tenths: int
@@ -2158,8 +2166,13 @@ script:
       edit_high: bool
       current_low: float
       current_high: float
+      source: string
     then:
-      - delay: 400ms
+      - lambda: |-
+          ESP_LOGI("setpoint_diag",
+                   "Processing setpoint request: source=%s entity=%s target=%.1f pending=%d",
+                   source.c_str(), climate_entity.c_str(),
+                   target_tenths / 10.0f, id(setpoint_requests_pending));
       - if:
           condition:
             lambda: 'return dual_setpoint;'
@@ -2174,11 +2187,23 @@ script:
                   target_temp_high: !lambda |-
                     float v = target_tenths / 10.0f;
                     return edit_high ? v : current_high;
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant accepted dual setpoint: source=%s entity=%s low=%.1f high=%.1f",
+                               source.c_str(), climate_entity.c_str(),
+                               edit_high ? current_low : target_tenths / 10.0f,
+                               edit_high ? target_tenths / 10.0f : current_high);
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant rejected dual setpoint: source=%s entity=%s",
+                               source.c_str(), climate_entity.c_str());
           else:
             - lambda: |-
                 ESP_LOGI("setpoint_diag",
-                         "Sending climate.set_temperature: entity=%s requested_temperature=%.1f",
-                         climate_entity.c_str(), target_tenths / 10.0f);
+                         "Sending climate.set_temperature: source=%s entity=%s requested_temperature=%.1f",
+                         source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
             - homeassistant.action:
                 action: climate.set_temperature
                 data:
@@ -2187,19 +2212,31 @@ script:
                 on_success:
                   - lambda: |-
                       ESP_LOGI("setpoint_diag",
-                               "Home Assistant accepted climate.set_temperature request: entity=%s requested_temperature=%.1f",
-                               climate_entity.c_str(), target_tenths / 10.0f);
+                               "Home Assistant completed climate.set_temperature: source=%s entity=%s requested_temperature=%.1f",
+                               source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
                 on_error:
                   - lambda: |-
                       ESP_LOGE("setpoint_diag",
-                               "Home Assistant action failed: climate.set_temperature entity=%s requested_temperature=%.1f",
-                               climate_entity.c_str(), target_tenths / 10.0f);
-      # Keep the locally edited value visible while HA and the display-data
-      # integration propagate the climate service call. The latter can lag behind
-      # the climate entity state, so do not accept its snapshot too quickly.
-      - delay: 4000ms
-      - lambda: 'id(setpoint_adjusting) = false;'
-      - script.execute: refresh_display_data
+                               "Home Assistant action failed: source=%s entity=%s requested_temperature=%.1f",
+                               source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
+      # Keep the optimistic UI value until every queued command has completed.
+      # Only the final completion is allowed to accept a fresh HA snapshot.
+      - lambda: |-
+          if (id(setpoint_requests_pending) > 0) {
+            id(setpoint_requests_pending)--;
+          }
+          ESP_LOGI("setpoint_diag",
+                   "Setpoint request finished: source=%s target=%.1f remaining=%d",
+                   source.c_str(), target_tenths / 10.0f,
+                   id(setpoint_requests_pending));
+          if (id(setpoint_requests_pending) == 0) {
+            id(setpoint_adjusting) = false;
+          }
+      - if:
+          condition:
+            lambda: 'return id(setpoint_requests_pending) == 0;'
+          then:
+            - script.execute: refresh_display_data
 
   - id: send_hvac_mode
     mode: restart
@@ -2644,9 +2681,12 @@ lvgl:
                         then:
                           - lambda: |-
                               id(setpoint_arc_user_changed) = false;
+                              id(setpoint_requests_pending)++;
+                              id(setpoint_adjusting) = true;
                               ESP_LOGI("setpoint_diag",
-                                       "Arc released; sending final target=%.1f",
-                                       id(active_target_tenths) / 10.0f);
+                                       "Arc released; queueing final target=%.1f pending=%d",
+                                       id(active_target_tenths) / 10.0f,
+                                       id(setpoint_requests_pending));
                           - script.execute:
                               id: debounced_send_setpoint
                               climate_entity: !lambda 'return id(active_climate_entity);'
@@ -2655,6 +2695,9 @@ lvgl:
                               edit_high: !lambda 'return id(edit_high_setpoint);'
                               current_low: !lambda 'return id(active_target_temp_low);'
                               current_high: !lambda 'return id(active_target_temp_high);'
+                         source: "plus"
+                         source: "minus"
+                              source: "arc"
 
               # Current room temperature marker, positioned dynamically along the arc.
               - obj:
@@ -2827,6 +2870,10 @@ lvgl:
                         int next_val = id(active_target_tenths) - 5;
                         if (next_val < 100) next_val = 100;
                         id(active_target_tenths) = next_val;
+                        id(setpoint_requests_pending)++;
+                        ESP_LOGI("setpoint_diag",
+                                 "Minus button: target=%.1f pending=%d",
+                                 next_val / 10.0f, id(setpoint_requests_pending));
                     - lvgl.arc.update:
                         id: climate_arc
                         value: !lambda 'return id(active_target_tenths);'
@@ -2866,6 +2913,10 @@ lvgl:
                         int next_val = id(active_target_tenths) + 5;
                         if (next_val > 320) next_val = 320;
                         id(active_target_tenths) = next_val;
+                        id(setpoint_requests_pending)++;
+                        ESP_LOGI("setpoint_diag",
+                                 "Plus button: target=%.1f pending=%d",
+                                 next_val / 10.0f, id(setpoint_requests_pending));
                     - lvgl.arc.update:
                         id: climate_arc
                         value: !lambda 'return id(active_target_tenths);'
