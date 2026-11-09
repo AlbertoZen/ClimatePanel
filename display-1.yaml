@@ -97,6 +97,10 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: setpoint_action_done
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: ha_client_ip
     type: std::string
     restore_value: no
@@ -2173,6 +2177,9 @@ script:
                    "Processing setpoint request: source=%s entity=%s target=%.1f pending=%d",
                    source.c_str(), climate_entity.c_str(),
                    target_tenths / 10.0f, id(setpoint_requests_pending));
+      # homeassistant.action dispatches the request asynchronously. Wait for
+      # its completion callback before allowing this queued script to finish.
+      - lambda: 'id(setpoint_action_done) = false;'
       - if:
           condition:
             lambda: 'return dual_setpoint;'
@@ -2190,15 +2197,17 @@ script:
                 on_success:
                   - lambda: |-
                       ESP_LOGI("setpoint_diag",
-                               "Home Assistant accepted dual setpoint: source=%s entity=%s low=%.1f high=%.1f",
+                               "Home Assistant completed dual setpoint: source=%s entity=%s low=%.1f high=%.1f",
                                source.c_str(), climate_entity.c_str(),
                                edit_high ? current_low : target_tenths / 10.0f,
                                edit_high ? target_tenths / 10.0f : current_high);
+                      id(setpoint_action_done) = true;
                 on_error:
                   - lambda: |-
                       ESP_LOGE("setpoint_diag",
                                "Home Assistant rejected dual setpoint: source=%s entity=%s",
                                source.c_str(), climate_entity.c_str());
+                      id(setpoint_action_done) = true;
           else:
             - lambda: |-
                 ESP_LOGI("setpoint_diag",
@@ -2214,11 +2223,25 @@ script:
                       ESP_LOGI("setpoint_diag",
                                "Home Assistant completed climate.set_temperature: source=%s entity=%s requested_temperature=%.1f",
                                source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
                 on_error:
                   - lambda: |-
                       ESP_LOGE("setpoint_diag",
                                "Home Assistant action failed: source=%s entity=%s requested_temperature=%.1f",
                                source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
+      - wait_until:
+          condition:
+            lambda: 'return id(setpoint_action_done);'
+          timeout: 30s
+      - if:
+          condition:
+            lambda: 'return !id(setpoint_action_done);'
+          then:
+            - lambda: |-
+                ESP_LOGE("setpoint_diag",
+                         "Timed out waiting for Home Assistant: source=%s entity=%s target=%.1f",
+                         source.c_str(), climate_entity.c_str(), target_tenths / 10.0f);
       # Keep the optimistic UI value until every queued command has completed.
       # Only the final completion is allowed to accept a fresh HA snapshot.
       - lambda: |-
