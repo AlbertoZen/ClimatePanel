@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "73"
+  ui_revision: "74"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -267,7 +267,8 @@ light:
     internal: true
     # Linear gamma (1.0) prevents 10% brightness from being crushed to 0.16% duty cycle
     gamma_correct: 1.0
-    default_transition_length: 500ms
+    # Smooth all brightness changes, including waking from the dim clock and automatic dimming.
+    default_transition_length: 2s
     output: backlight_output
     restore_mode: ALWAYS_ON
 
