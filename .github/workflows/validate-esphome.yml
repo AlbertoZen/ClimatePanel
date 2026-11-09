@@ -92,9 +92,12 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'ui_revision: "79"' in firmware
+          assert 'ui_revision: "80"' in firmware
           assert "                  radius: 22" in firmware
-          assert "lv_obj_invalidate(id(popup_overlay));" in firmware
+          history_handler = firmware.split("id: btn_climate_history", 1)[1].split("id: popup_overlay", 1)[0]
+          assert "lv_obj_invalidate(id(popup_overlay));" in history_handler
+          clock_handler = firmware.split("id: top_clock_pill", 1)[1].split("id: btn_climate_history", 1)[0]
+          assert "lv_obj_invalidate(id(popup_overlay));" not in clock_handler
           assert "lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_COVER, LV_PART_MAIN);" not in firmware
           assert "lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);" in firmware
           assert "default_transition_length: 2s" in firmware
