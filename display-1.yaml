@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "80"
+  ui_revision: "81"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -2127,6 +2127,17 @@ lvgl:
         lv_obj_add_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
 
+        // Host the modal dimmer on LVGL's display-wide top layer rather than
+        // inside the thermostat page hierarchy. This guarantees it covers the
+        // complete physical screen, including the outermost corner pixels.
+        lv_obj_set_parent(id(popup_overlay), lv_layer_top());
+        lv_obj_set_pos(id(popup_overlay), 0, 0);
+        lv_obj_set_size(id(popup_overlay), 480, 480);
+        lv_obj_set_style_radius(id(popup_overlay), 0, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(id(popup_overlay), lv_color_hex(0x000000), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
+        lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_SCROLLABLE);
+
         // Build a transparent chart directly on the page. Activity shading is
         // drawn by a sibling background layer created before the chart, so the
         // grid and temperature lines remain crisp above it.
@@ -3020,6 +3031,9 @@ lvgl:
                   lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
+                  // Refresh the full screen and top-layer overlay as one composition.
+                  lv_obj_invalidate(lv_scr_act());
+                  lv_obj_invalidate(id(popup_overlay));
             widgets:
               - label:
                   id: lbl_clock
@@ -3109,8 +3123,8 @@ lvgl:
                   lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
-                  // Force a full overlay redraw so the transparent backdrop and
-                  // rounded popup corners are recomposited together on the first frame.
+                  // Refresh the full screen and top-layer overlay as one composition.
+                  lv_obj_invalidate(lv_scr_act());
                   lv_obj_invalidate(id(popup_overlay));
               - script.execute: refresh_history_chart
             widgets:
