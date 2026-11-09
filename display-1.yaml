@@ -1379,7 +1379,9 @@ script:
             active_val = id(active_target_temperature);
           }
 
-          if (!isnan(active_val)) {
+          // Keep the optimistic local setpoint while an adjustment is pending.
+          // Recorder/config snapshots can lag behind the climate service call.
+          if (!id(setpoint_adjusting) && !isnan(active_val)) {
             id(active_target_tenths) = ((int)round(active_val * 2.0f)) * 5;
           }
 
