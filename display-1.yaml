@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "74"
+  ui_revision: "75"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -2126,6 +2126,11 @@ lvgl:
         lv_image_set_src(id(img_climate_snapshot_in), static_cast<const void *>(nullptr));
         lv_obj_add_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
+
+        // Keep dynamically drawn history content inside the rounded popup outline.
+        // The chart container nearly reaches the lower edge, so clipping prevents
+        // child pixels from showing through the popup's rounded corners.
+        lv_obj_set_style_clip_corner(id(history_popup), true, LV_PART_MAIN);
 
         // Build a transparent chart directly on the page. Activity shading is
         // drawn by a sibling background layer created before the chart, so the
