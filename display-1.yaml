@@ -2,8 +2,8 @@
 # Definition: definitions/boards/guition_esp32_s3_4848s040/manifest.yaml
 
 substitutions:
-  ui_version: "1.5"
-  ui_revision: "83"
+  ui_version: "2026.11.09"
+  ui_revision: "84"
 esphome:
   name: display-1
   friendly_name: Heating Controller
