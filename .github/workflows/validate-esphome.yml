@@ -92,7 +92,8 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'ui_revision: "74"' in firmware
+          assert 'ui_revision: "75"' in firmware
+          assert "lv_obj_set_style_clip_corner(id(history_popup), true, LV_PART_MAIN);" in firmware
           assert "default_transition_length: 2s" in firmware
           assert "frequency: 19531Hz" in firmware
           assert "const lv_color_t clock_bg = lv_color_hex(0x111318);" in firmware
