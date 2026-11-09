@@ -2170,8 +2170,10 @@ script:
                 data:
                   entity_id: !lambda 'return climate_entity;'
                   temperature: !lambda 'return target_tenths / 10.0f;'
-      # Keep the locally edited value visible while HA propagates the service call.
-      - delay: 1200ms
+      # Keep the locally edited value visible while HA and the display-data
+      # integration propagate the climate service call. The latter can lag behind
+      # the climate entity state, so do not accept its snapshot too quickly.
+      - delay: 4000ms
       - lambda: 'id(setpoint_adjusting) = false;'
       - script.execute: refresh_display_data
 
