@@ -19,7 +19,7 @@ After installing the integration, open:
 
 **Settings → Devices & services → Heating Controller → Configure**
 
-First choose between two and four rooms and, optionally, an outdoor temperature sensor. The next step shows only the climate, humidity and icon selectors for the selected number of rooms. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
+First choose between two and four rooms and, optionally, an outdoor weather entity (recommended) or a legacy temperature sensor. Weather entities supply the current reading through their `temperature` attribute; the integration normalises it to °C for the display. The outdoor reading appears beneath the room name on the main thermostat and on the dimmed clock screen. The next step shows only the climate, humidity and icon selectors for the selected number of rooms. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
 
 Settings for disabled rooms are retained. For example, changing from three rooms to two hides the third room's selectors but preserves its climate, humidity and icon selections. Increasing the room count later restores those settings.
 
