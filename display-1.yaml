@@ -101,6 +101,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: setpoint_expected_tenths
+    type: int
+    restore_value: no
+    initial_value: '200'
   - id: ha_client_ip
     type: std::string
     restore_value: no
@@ -1112,9 +1116,23 @@ script:
                          room["target_temperature"].isNull()
                            ? "null" : std::to_string(room["target_temperature"].as<float>()).c_str(),
                          id(setpoint_adjusting) ? "true" : "false");
-                // Ignore stale Recorder/config snapshots while the user is changing the setpoint.
-                if (!id(setpoint_adjusting)) {
-                  id(active_target_temperature) = read_number(room, "target_temperature");
+                const float reported_target = read_number(room, "target_temperature");
+                // Keep the optimistic target until HA's live climate state confirms it.
+                if (id(setpoint_adjusting)) {
+                  if (isfinite(reported_target) &&
+                      (int)round(reported_target * 10.0f) == id(setpoint_expected_tenths)) {
+                    id(active_target_temperature) = reported_target;
+                    id(active_target_temp_low) = read_number(room, "target_temp_low");
+                    id(active_target_temp_high) = read_number(room, "target_temp_high");
+                    id(setpoint_adjusting) = false;
+                    ESP_LOGI("setpoint_diag", "Home Assistant state confirmed final target: %.1f", reported_target);
+                  } else {
+                    ESP_LOGI("setpoint_diag", "Waiting for climate state: expected=%.1f reported=%s",
+                             id(setpoint_expected_tenths) / 10.0f,
+                             isfinite(reported_target) ? std::to_string(reported_target).c_str() : "unavailable");
+                  }
+                } else {
+                  id(active_target_temperature) = reported_target;
                   id(active_target_temp_low) = read_number(room, "target_temp_low");
                   id(active_target_temp_high) = read_number(room, "target_temp_high");
                 }
@@ -2253,7 +2271,7 @@ script:
                    source.c_str(), target_tenths / 10.0f,
                    id(setpoint_requests_pending));
           if (id(setpoint_requests_pending) == 0) {
-            id(setpoint_adjusting) = false;
+            id(setpoint_expected_tenths) = target_tenths;
           }
       - if:
           condition:
@@ -2891,6 +2909,7 @@ lvgl:
                         int next_val = id(active_target_tenths) - 5;
                         if (next_val < 100) next_val = 100;
                         id(active_target_tenths) = next_val;
+                        id(setpoint_expected_tenths) = next_val;
                         id(setpoint_requests_pending)++;
                         ESP_LOGI("setpoint_diag",
                                  "Minus button: target=%.1f pending=%d",
