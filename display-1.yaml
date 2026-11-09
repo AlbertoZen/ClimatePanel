@@ -1675,13 +1675,6 @@ script:
           lv_obj_set_style_text_color(id(lbl_env_combined), muted, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_step_down), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_step_up), primary, LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_off), primary, LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_heat), primary, LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_cool), lv_color_hex(dark ? 0x8AD5FF : 0x005B81), LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_heat_cool), lv_color_hex(dark ? 0xA6F2D1 : 0x17613F), LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_auto), lv_color_hex(dark ? 0xA6F2D1 : 0x17613F), LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_dry), lv_color_hex(dark ? 0xEAB2FF : 0x71408E), LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_mode_fan_only), lv_color_hex(dark ? 0x89F8EC : 0x006A64), LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_dual_low), lv_color_hex(dark ? 0xFFB59A : 0x963C15), LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_dual_high), lv_color_hex(dark ? 0x8AD5FF : 0x005B81), LV_PART_MAIN);
 
