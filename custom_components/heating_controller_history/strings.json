@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Heating Controller",
-        "description": "Choose how many rooms to display and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the thermostat and clock screens.",
+        "description": "Choose how many rooms to display and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver.",
         "data": {
           "room_count": "Number of rooms",
           "outside_temperature_entity": "Outdoor weather entity / legacy sensor"
@@ -42,7 +42,7 @@
     "step": {
       "init": {
         "title": "Heating Controller rooms",
-        "description": "Choose the number of active rooms and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the thermostat and clock screens. Settings for disabled rooms are retained.",
+        "description": "Choose the number of active rooms and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver. Settings for disabled rooms are retained.",
         "data": {
           "room_count": "Number of rooms",
           "outside_temperature_entity": "Outdoor weather entity / legacy sensor"
