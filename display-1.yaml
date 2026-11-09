@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "79"
+  ui_revision: "80"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -3020,9 +3020,6 @@ lvgl:
                   lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
-                  // Force a full overlay redraw so the transparent backdrop and
-                  // rounded popup corners are recomposited together on the first frame.
-                  lv_obj_invalidate(id(popup_overlay));
             widgets:
               - label:
                   id: lbl_clock
@@ -3112,6 +3109,9 @@ lvgl:
                   lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_move_foreground(id(popup_overlay));
+                  // Force a full overlay redraw so the transparent backdrop and
+                  // rounded popup corners are recomposited together on the first frame.
+                  lv_obj_invalidate(id(popup_overlay));
               - script.execute: refresh_history_chart
             widgets:
               - image:
