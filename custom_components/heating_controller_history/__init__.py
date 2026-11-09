@@ -17,9 +17,11 @@ import voluptuous as vol
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 DOMAIN = "heating_controller_history"
 _LOGGER = logging.getLogger(__name__)
@@ -54,10 +56,13 @@ def _temperature_celsius(value: Any, unit: Any) -> float | None:
     temperature = _number(value)
     if temperature is None:
         return None
-    normalized_unit = str(unit or "").strip().lower().replace("°", "")
-    if normalized_unit in {"f", "fahrenheit"}:
-        return (temperature - 32.0) * (5.0 / 9.0)
-    return temperature
+    try:
+        source_unit = unit or UnitOfTemperature.CELSIUS
+        return TemperatureConverter.convert(
+            temperature, source_unit, UnitOfTemperature.CELSIUS
+        )
+    except (HomeAssistantError, ValueError):
+        return None
 
 
 def _state_attributes(state: Any) -> dict[str, Any]:
