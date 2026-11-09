@@ -1718,6 +1718,10 @@ script:
           const bool hvac_active = current_action == "heating" || current_action == "cooling" ||
                                   current_action == "fan" || current_action == "drying";
           lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
+          // Blend the tint vertically into the actual page background so the
+          // lower edge disappears into the open end of the thermostat arc.
+          lv_obj_set_style_bg_grad_color(id(climate_arc_inner_tint), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_grad_dir(id(climate_arc_inner_tint), LV_GRAD_DIR_VER, LV_PART_MAIN);
           lv_obj_set_style_bg_opa(id(climate_arc_inner_tint), hvac_active ? LV_OPA_10 : LV_OPA_TRANSP, LV_PART_MAIN);
           lv_obj_invalidate(id(climate_arc_inner_tint));
 
