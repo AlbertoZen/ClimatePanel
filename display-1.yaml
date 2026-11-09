@@ -2691,6 +2691,10 @@ lvgl:
                         id(setpoint_adjusting) = true;
                         id(setpoint_arc_user_changed) = true;
                         id(active_target_tenths) = next_tenths;
+                        // Track the live drag target as well, so a periodic HA
+                        // refresh cannot mistake the previous setpoint for the
+                        // final target and overwrite the arc while it is moving.
+                        id(setpoint_expected_tenths) = next_tenths;
                         ESP_LOGD("setpoint_diag",
                                  "Arc user interaction: raw=%d target=%.1f",
                                  (int)x, next_tenths / 10.0f);
