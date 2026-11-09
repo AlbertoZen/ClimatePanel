@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "1.5"
-  ui_revision: "67"
+  ui_revision: "68"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -1121,6 +1121,18 @@ script:
           id: lbl_room_title
           text: !lambda 'return id(active_climate_name);'
       - lvgl.label.update:
+          id: lbl_outside_temperature
+          text: !lambda |-
+            const float temperature = id(outside_temperature_dynamic);
+            if (isnan(temperature)) return std::string("");
+            return str_sprintf("Outside  %.1f°C", temperature);
+      - lambda: |-
+          if (isnan(id(outside_temperature_dynamic))) {
+            lv_obj_add_flag(id(lbl_outside_temperature), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_clear_flag(id(lbl_outside_temperature), LV_OBJ_FLAG_HIDDEN);
+          }
+      - lvgl.label.update:
           id: lbl_hvac_state
           text: !lambda |-
             const std::string action = id(active_hvac_action);
@@ -1637,6 +1649,7 @@ script:
           // Diagnostics page: use the same theme-aware foreground for every
           // heading and value. This keeps all text legible in both themes.
           lv_obj_set_style_text_color(id(lbl_info_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_outside_temperature), muted, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_clock_screen_time), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_clock_screen_date), secondary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_clock_screen_env), primary, LV_PART_MAIN);
@@ -2327,6 +2340,18 @@ lvgl:
                   text: "Master"
                   text_font: font_medium
                   text_color: 0xE2E2E9
+
+              - label:
+                  id: lbl_outside_temperature
+                  align: TOP_LEFT
+                  x: 50
+                  y: 43
+                  width: 220
+                  height: 20
+                  text: ""
+                  text_font: font_small
+                  text_color: 0x8E9099
+                  hidden: true
 
               - image:
                   id: img_room_icon_home
