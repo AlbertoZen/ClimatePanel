@@ -85,6 +85,10 @@ globals:
     type: int
     restore_value: no
     initial_value: '200'
+  - id: setpoint_adjusting
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: ha_client_ip
     type: std::string
     restore_value: no
@@ -1047,9 +1051,12 @@ script:
                 }
                 id(active_current_temp) = read_number(room, "current_temperature");
                 id(active_humidity) = read_number(room, "humidity");
-                id(active_target_temperature) = read_number(room, "target_temperature");
-                id(active_target_temp_low) = read_number(room, "target_temp_low");
-                id(active_target_temp_high) = read_number(room, "target_temp_high");
+                // Ignore stale Recorder/config snapshots while the user is changing the setpoint.
+                if (!id(setpoint_adjusting)) {
+                  id(active_target_temperature) = read_number(room, "target_temperature");
+                  id(active_target_temp_low) = read_number(room, "target_temp_low");
+                  id(active_target_temp_high) = read_number(room, "target_temp_high");
+                }
                 id(active_hvac_mode) = room["hvac_mode"].as<std::string>();
                 id(active_hvac_action) = room["hvac_action"].as<std::string>();
                 id(active_supported_modes).clear();
@@ -1720,8 +1727,7 @@ script:
           lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
           // Blend the tint vertically into the actual page background so the
           // lower edge disappears into the open end of the thermostat arc.
-          lv_obj_set_style_bg_grad_color(id(climate_arc_inner_tint), bg, LV_PART_MAIN);
-          lv_obj_set_style_bg_grad_dir(id(climate_arc_inner_tint), LV_GRAD_DIR_VER, LV_PART_MAIN);
+          // Keep a uniform, subtle tint: the display does not render the desired fade cleanly.
           lv_obj_set_style_bg_opa(id(climate_arc_inner_tint), hvac_active ? LV_OPA_10 : LV_OPA_TRANSP, LV_PART_MAIN);
           lv_obj_invalidate(id(climate_arc_inner_tint));
 
@@ -2126,6 +2132,10 @@ script:
                 data:
                   entity_id: !lambda 'return climate_entity;'
                   temperature: !lambda 'return target_tenths / 10.0f;'
+      # Keep the locally edited value visible while HA propagates the service call.
+      - delay: 1200ms
+      - lambda: 'id(setpoint_adjusting) = false;'
+      - script.execute: refresh_display_data
 
   - id: send_hvac_mode
     mode: restart
@@ -2552,6 +2562,7 @@ lvgl:
                     pad_all: 4
                   on_value:
                     - lambda: |-
+                        id(setpoint_adjusting) = true;
                         id(active_target_tenths) = ((int)round(x / 5.0f)) * 5;
                     - script.execute: render_setpoint
                   on_release:
@@ -2731,6 +2742,7 @@ lvgl:
                     bg_color: 0x4A4E60
                   on_click:
                     - lambda: |-
+                        id(setpoint_adjusting) = true;
                         int next_val = id(active_target_tenths) - 5;
                         if (next_val < 100) next_val = 100;
                         id(active_target_tenths) = next_val;
@@ -2769,6 +2781,7 @@ lvgl:
                     bg_color: 0x4A4E60
                   on_click:
                     - lambda: |-
+                        id(setpoint_adjusting) = true;
                         int next_val = id(active_target_tenths) + 5;
                         if (next_val > 320) next_val = 320;
                         id(active_target_tenths) = next_val;
