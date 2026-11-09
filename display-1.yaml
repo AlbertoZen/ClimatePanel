@@ -1094,6 +1094,12 @@ script:
                 }
                 id(active_current_temp) = read_number(room, "current_temperature");
                 id(active_humidity) = read_number(room, "humidity");
+                ESP_LOGI("setpoint_diag",
+                         "Display data: entity=%s target_temperature=%s (adjusting=%s)",
+                         id(active_climate_entity).c_str(),
+                         room["target_temperature"].isNull()
+                           ? "null" : std::to_string(room["target_temperature"].as<float>()).c_str(),
+                         id(setpoint_adjusting) ? "true" : "false");
                 // Ignore stale Recorder/config snapshots while the user is changing the setpoint.
                 if (!id(setpoint_adjusting)) {
                   id(active_target_temperature) = read_number(room, "target_temperature");
@@ -2165,11 +2171,25 @@ script:
                     float v = target_tenths / 10.0f;
                     return edit_high ? v : current_high;
           else:
+            - lambda: |-
+                ESP_LOGI("setpoint_diag",
+                         "Sending climate.set_temperature: entity=%s requested_temperature=%.1f",
+                         climate_entity.c_str(), target_tenths / 10.0f);
             - homeassistant.action:
                 action: climate.set_temperature
                 data:
                   entity_id: !lambda 'return climate_entity;'
                   temperature: !lambda 'return target_tenths / 10.0f;'
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant accepted climate.set_temperature request: entity=%s requested_temperature=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant action failed: climate.set_temperature entity=%s requested_temperature=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
       # Keep the locally edited value visible while HA and the display-data
       # integration propagate the climate service call. The latter can lag behind
       # the climate entity state, so do not accept its snapshot too quickly.
