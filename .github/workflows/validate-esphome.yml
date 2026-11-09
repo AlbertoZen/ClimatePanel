@@ -92,7 +92,9 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'ui_revision: "82"' in firmware
+          assert 'ui_revision: "83"' in firmware
+          history_unit = firmware.split("id: lbl_history_axis_temp", 1)[1].split("id: lbl_history_loading", 1)[0]
+          assert "x: 4" in history_unit and "width: 36" in history_unit and 'text: "[°C]"' in history_unit
           assert 'const float padding = fmaxf(0.5f, data_span * 0.08f);' in firmware
           assert 'lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, axis_min_tenths, axis_max_tenths);' in firmware
           assert 'text: "[°C]"' in firmware
