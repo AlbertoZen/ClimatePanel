@@ -906,15 +906,15 @@ script:
             - if:
                 condition:
                   lambda: 'return id(display_showing_clock);'
-              then:
-                - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
-                - lvgl.pause:
-              else:
-                - if:
-                    condition:
-                      not: lvgl.is_paused
-                  then:
-                    - script.execute: display_idle_sequence
+                then:
+                  - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+                  - lvgl.pause:
+                else:
+                  - if:
+                      condition:
+                        not: lvgl.is_paused
+                      then:
+                        - script.execute: display_idle_sequence
 
   # First wait for the dim delay, then wait the additional off delay.
   # The sequence is restarted by touch, HA Wake Display, or delay adjustment.
