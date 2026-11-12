@@ -3364,7 +3364,7 @@ lvgl:
                   id: info_popup
                   align: CENTER
                   width: 448
-                  height: 370
+                  height: 412
                   radius: 22
                   bg_color: 0x111318
                   bg_opa: COVER
