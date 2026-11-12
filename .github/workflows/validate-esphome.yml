@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
   pull_request:
     branches:
       - main
@@ -92,8 +94,9 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'ui_version: "2026.11.09"' in firmware
-          assert 'ui_revision: "85"' in firmware
+          assert 'build_identifier: "local"' in firmware
+          assert 'id: lbl_diag_firmware' in firmware
+          assert 'text: "${build_identifier}"' in firmware
           history_unit = firmware.split("id: lbl_history_axis_temp", 1)[1].split("id: lbl_history_loading", 1)[0]
           assert "x: 4" in history_unit and "width: 36" in history_unit and 'text: "[°C]"' in history_unit
           assert 'const float padding = fmaxf(0.5f, data_span * 0.08f);' in firmware
@@ -124,4 +127,10 @@ jobs:
           PY
 
       - name: Validate ESPHome configuration
-        run: esphome config display-1.yaml
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            BUILD_IDENTIFIER="$GITHUB_REF_NAME"
+          else
+            BUILD_IDENTIFIER="${GITHUB_SHA:0:12}"
+          fi
+          esphome -s build_identifier "$BUILD_IDENTIFIER" config display-1.yaml
