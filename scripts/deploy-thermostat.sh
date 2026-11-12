@@ -86,6 +86,7 @@ else
   BUILD_IDENTIFIER="$(git -C "$REPO" rev-parse --short=12 HEAD)"
   echo "  Firmware identifier: Git commit $BUILD_IDENTIFIER"
 fi
+echo "  Prepared firmware config: $FIRMWARE_TARGET"
 
 [[ -f "$FIRMWARE_SOURCE" ]] || fail "Firmware source is missing."
 [[ -f "$COMPONENT_SOURCE/__init__.py" ]] || fail "History integration __init__.py is missing."
@@ -155,6 +156,16 @@ if firmware.count(placeholder) != 1:
 firmware_path.write_text(
     firmware.replace(placeholder, f"  build_identifier: {json.dumps(build_identifier)}")
 )
+PY
+python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" <<'PY'
+import sys
+from pathlib import Path
+
+firmware = Path(sys.argv[1]).read_text()
+expected = f'  build_identifier: "{sys.argv[2]}"'
+if expected not in firmware:
+    raise SystemExit("Generated firmware config does not contain the expected Git identifier")
+print(f"  Embedded firmware identifier: {sys.argv[2]}")
 PY
 if ! esphome config "$FIRMWARE_CANDIDATE" >"$VALIDATION_LOG" 2>&1; then
   echo "ESPHome validation failed. Active firmware has NOT been changed."
@@ -292,5 +303,6 @@ if [[ "$BRIDGE_CHANGED" == true ]]; then
 else
   echo "No Home Assistant integration restart is required."
 fi
+echo "Compile and install $FIRMWARE_TARGET in the ESPHome Dashboard."
 echo "Firmware was NOT compiled or flashed."
 echo "======================================"
