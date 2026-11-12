@@ -3,7 +3,7 @@
 
 substitutions:
   ui_version: "2026.11.09"
-  ui_revision: "84"
+  ui_revision: "85"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -878,46 +878,43 @@ script:
   - id: apply_idle_screen_mode
     mode: restart
     then:
+      # Cancel any pending dim/off transition. A mode change must take effect
+      # immediately rather than waiting for the previous idle timer to expire.
+      - script.stop: display_idle_sequence
       - if:
           condition:
             lambda: 'return id(display_idle_screen).current_option() == "Clock";'
           then:
+            # Resume LVGL first when the Off mode had paused it. The same clock
+            # transition is then used whether the display was off or dimmed.
             - if:
                 condition: lvgl.is_paused
                 then:
                   - lvgl.resume:
-                  - lambda: 'id(display_showing_clock) = true; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN); id(display_is_dimmed) = true;'
-                  - lvgl.page.show:
-                      id: page_clock_screen
-                  - lambda: |-
-                      id(clock_screen_shift_step) = 0;
-                      lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
-                  - script.execute: update_clock_label
-                  - script.execute: update_clock_environment
-                  - light.turn_on:
-                      id: display_backlight
-                      brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
-                else:
-                  - if:
-                      condition:
-                        lambda: 'return id(display_showing_clock);'
-                      then:
-                        - logger.log: "Clock idle screen is already active"
-                      else:
-                        - script.execute: display_idle_sequence
+            - lambda: 'id(display_showing_clock) = true; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN); id(display_is_dimmed) = true;'
+            - lvgl.page.show:
+                id: page_clock_screen
+            - lambda: |-
+                id(clock_screen_shift_step) = 0;
+                lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+            - script.execute: update_clock_label
+            - script.execute: update_clock_environment
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
           else:
             - if:
                 condition:
                   lambda: 'return id(display_showing_clock);'
-                then:
-                  - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
-                  - lvgl.pause:
-                else:
-                  - if:
-                      condition:
-                        not: lvgl.is_paused
-                      then:
-                        - script.execute: display_idle_sequence
+              then:
+                - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+                - lvgl.pause:
+              else:
+                - if:
+                    condition:
+                      not: lvgl.is_paused
+                  then:
+                    - script.execute: display_idle_sequence
 
   # First wait for the dim delay, then wait the additional off delay.
   # The sequence is restarted by touch, HA Wake Display, or delay adjustment.
