@@ -63,7 +63,7 @@ The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, sign
 ## Install or update
 
 1. Ensure the integration directory is deployed to `/config/custom_components/heating_controller_history/`.
-2. Run `/config/deploy-thermostat.sh` from the Studio Code Server terminal.
+2. Run `/config/thermostat-esphome/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used.
 3. Restart Home Assistant when the script reports that the integration has changed.
 4. On the first migration from the old YAML package, add **Heating Controller** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
 5. In **Settings → Devices & services → ESPHome**, open the display device's Configure dialog and ensure it is allowed to perform Home Assistant actions.
