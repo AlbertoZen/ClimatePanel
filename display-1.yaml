@@ -2,8 +2,8 @@
 # Definition: definitions/boards/guition_esp32_s3_4848s040/manifest.yaml
 
 substitutions:
-  ui_version: "2026.11.09"
-  ui_revision: "85"
+  # Replaced by the deployment script with a Git tag or short commit SHA.
+  build_identifier: "local"
 esphome:
   name: display-1
   friendly_name: Heating Controller
@@ -3389,7 +3389,7 @@ lvgl:
                         align: TOP_MID
                         y: 70
                         width: 408
-                        height: 258
+                        height: 300
                         radius: 0
                         scrollable: false
                         bg_opa: TRANSP
@@ -3574,6 +3574,36 @@ lvgl:
                                     width: 196
                                     text_align: RIGHT
                                     text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 252
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_firmware_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "Firmware"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_firmware
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "${build_identifier}"
                                     text_font: font_small
                                     text_color: 0xE2E2E9
                     - button:
