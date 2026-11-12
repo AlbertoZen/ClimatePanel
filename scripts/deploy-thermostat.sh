@@ -77,7 +77,15 @@ fi
 
 echo
 echo "1. Updating source from GitHub..."
+git -C "$REPO" fetch --tags origin
 git -C "$REPO" pull --ff-only origin main
+
+if BUILD_IDENTIFIER="$(git -C "$REPO" describe --tags --exact-match HEAD 2>/dev/null)"; then
+  echo "  Firmware identifier: release tag $BUILD_IDENTIFIER"
+else
+  BUILD_IDENTIFIER="$(git -C "$REPO" rev-parse --short=12 HEAD)"
+  echo "  Firmware identifier: Git commit $BUILD_IDENTIFIER"
+fi
 
 [[ -f "$FIRMWARE_SOURCE" ]] || fail "Firmware source is missing."
 [[ -f "$COMPONENT_SOURCE/__init__.py" ]] || fail "History integration __init__.py is missing."
@@ -133,6 +141,21 @@ FIRMWARE_CANDIDATE="$(mktemp "$ESPHOME_DIR/.display-1-candidate.XXXXXX.yaml")"
 VALIDATION_LOG="$(mktemp /tmp/thermostat-validation.XXXXXX.log)"
 cp "$FIRMWARE_SOURCE" "$FIRMWARE_CANDIDATE"
 chmod --reference="$FIRMWARE_TARGET" "$FIRMWARE_CANDIDATE"
+python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+firmware_path = Path(sys.argv[1])
+build_identifier = sys.argv[2]
+firmware = firmware_path.read_text()
+placeholder = '  build_identifier: "local"'
+if firmware.count(placeholder) != 1:
+    raise SystemExit("Expected exactly one build_identifier placeholder in display-1.yaml")
+firmware_path.write_text(
+    firmware.replace(placeholder, f"  build_identifier: {json.dumps(build_identifier)}")
+)
+PY
 if ! esphome config "$FIRMWARE_CANDIDATE" >"$VALIDATION_LOG" 2>&1; then
   echo "ESPHome validation failed. Active firmware has NOT been changed."
   show_validation_error
@@ -143,7 +166,7 @@ echo "  ESPHome configuration: OK"
 FIRMWARE_CHANGED=false
 COMPONENT_CHANGED=false
 PACKAGE_CHANGED=false
-cmp -s "$FIRMWARE_SOURCE" "$FIRMWARE_TARGET" || FIRMWARE_CHANGED=true
+cmp -s "$FIRMWARE_CANDIDATE" "$FIRMWARE_TARGET" || FIRMWARE_CHANGED=true
 if [[ ! -d "$COMPONENT_TARGET" ]] || ! diff -qr "$COMPONENT_SOURCE" "$COMPONENT_TARGET" >/dev/null 2>&1; then
   COMPONENT_CHANGED=true
 fi
