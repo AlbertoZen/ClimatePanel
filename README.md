@@ -58,7 +58,7 @@ Recorder reads run through Recorder's dedicated database executor. Recorder must
 
 ## Diagnostics
 
-The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID and signal strength. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script embeds this value in the installed ESPHome YAML. Compiling the repository YAML directly without the deployment script displays `local`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
 
 ## Install or update
 
@@ -74,4 +74,4 @@ The script validates the ESPHome YAML against the local secrets, backs up the ac
 
 ## Development
 
-After changing the ESPHome firmware YAML, increment `ui_revision`. The CI workflow runs `esphome config`; this validates ESPHome configuration but does not compile or flash firmware.
+Firmware metadata is generated from Git: the deployment script fetches tags and embeds the exact tag when the deployed commit is tagged, otherwise a 12-character commit SHA. No manual firmware revision needs to be maintained. The CI workflow validates the ESPHome configuration for branch commits and pushed tags; this validates configuration but does not compile or flash firmware.
