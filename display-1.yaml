@@ -453,7 +453,15 @@ select:
     icon: "mdi:clock-outline"
     set_action:
       then:
-        - script.execute: apply_idle_screen_mode
+        # A template select runs set_action before it publishes the new state.
+        # Use x (the requested option) rather than current_option(), which is stale here.
+        - if:
+            condition:
+              lambda: 'return x == "Clock";'
+            then:
+              - script.execute: show_idle_clock_screen
+            else:
+              - script.execute: apply_idle_screen_off
 
   - platform: template
     name: "Display Rotation"
@@ -872,49 +880,55 @@ script:
           brightness: !lambda 'return id(display_brightness_control).state / 100.0f;'
       - script.execute: display_idle_sequence
 
-  # Apply the selected idle screen immediately when Home Assistant changes it.
-  # Selecting Clock while the display is fully off resumes LVGL straight onto the clock.
-  # Selecting Off while the clock is showing pauses LVGL and switches the backlight off.
-  - id: apply_idle_screen_mode
+  # Selecting Clock is dispatched from set_action using its requested value (x),
+  # because current_option() still contains the previous value while set_action runs.
+  - id: show_idle_clock_screen
     mode: restart
     then:
-      # Cancel any pending dim/off transition. A mode change must take effect
-      # immediately rather than waiting for the previous idle timer to expire.
+      - script.stop: display_idle_sequence
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Idle screen: resuming LVGL for clock"
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lambda: |-
+          id(display_showing_clock) = true;
+          id(history_page_visible) = false;
+          id(display_is_dimmed) = true;
+          lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+          id(clock_screen_shift_step) = 0;
+          lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+      - lvgl.page.show:
+          id: page_clock_screen
+      - lvgl.widget.redraw:
+      - script.execute: update_clock_label
+      - script.execute: update_clock_environment
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+
+  # Selecting Off while the clock is showing pauses LVGL (which turns off
+  # the backlight); if the screen is already active, start its idle sequence.
+  - id: apply_idle_screen_off
+    mode: restart
+    then:
       - script.stop: display_idle_sequence
       - if:
           condition:
-            lambda: 'return id(display_idle_screen).current_option() == "Clock";'
+            lambda: 'return id(display_showing_clock);'
           then:
-            # Resume LVGL first when the Off mode had paused it. The same clock
-            # transition is then used whether the display was off or dimmed.
-            - if:
-                condition: lvgl.is_paused
-                then:
-                  - lvgl.resume:
-            - lambda: 'id(display_showing_clock) = true; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN); id(display_is_dimmed) = true;'
-            - lvgl.page.show:
-                id: page_clock_screen
             - lambda: |-
-                id(clock_screen_shift_step) = 0;
-                lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
-            - script.execute: update_clock_label
-            - script.execute: update_clock_environment
-            - light.turn_on:
-                id: display_backlight
-                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+                id(display_showing_clock) = false;
+                id(history_page_visible) = false;
+                lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+            - lvgl.pause:
           else:
             - if:
                 condition:
-                  lambda: 'return id(display_showing_clock);'
-                then:
-                  - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
-                  - lvgl.pause:
-                else:
-                  - if:
-                      condition:
-                        not: lvgl.is_paused
-                      then:
-                        - script.execute: display_idle_sequence
+                  not: lvgl.is_paused
+              then:
+                - script.execute: display_idle_sequence
 
   # First wait for the dim delay, then wait the additional off delay.
   # The sequence is restarted by touch, HA Wake Display, or delay adjustment.
