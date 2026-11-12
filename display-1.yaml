@@ -1745,12 +1745,14 @@ script:
           lv_obj_set_style_text_color(id(lbl_diag_ip_label), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm_label), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_mac_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware_label), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_ssid), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_status), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_uptime), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_display_ip), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm), primary, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_diag_mac), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware), primary, LV_PART_MAIN);
           if (id(climate_loading_overlay) != nullptr) {
             lv_obj_set_style_bg_color(id(climate_loading_overlay), lv_color_hex(0x080B12), LV_PART_MAIN);
             lv_obj_set_style_bg_opa(id(climate_loading_overlay), LV_OPA_70, LV_PART_MAIN);

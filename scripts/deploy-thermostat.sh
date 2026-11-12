@@ -263,6 +263,13 @@ if [[ "$FIRMWARE_CHANGED" == true ]]; then
   FIRMWARE_CANDIDATE=""
 fi
 
+EXPECTED_BUILD_IDENTIFIER_LINE="  build_identifier: \"$BUILD_IDENTIFIER\""
+if ! grep -Fqx "$EXPECTED_BUILD_IDENTIFIER_LINE" "$FIRMWARE_TARGET"; then
+  fail "Installed firmware YAML does not contain the expected Git identifier: $BUILD_IDENTIFIER"
+fi
+echo "  Installed firmware identifier: $BUILD_IDENTIFIER"
+echo "  Compile this exact file in ESPHome Dashboard: $FIRMWARE_TARGET"
+
 [[ -n "$COMPONENT_OLD" && -d "$COMPONENT_OLD" ]] && rm -rf "$COMPONENT_OLD"
 [[ -n "$PACKAGE_OLD" && -f "$PACKAGE_OLD" ]] && rm -f "$PACKAGE_OLD"
 

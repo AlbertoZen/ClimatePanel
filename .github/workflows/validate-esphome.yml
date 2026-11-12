@@ -97,9 +97,15 @@ jobs:
           assert 'build_identifier: "local"' in firmware
           assert 'id: lbl_diag_firmware' in firmware
           assert 'text: "${build_identifier}"' in firmware
+          assert 'lv_obj_set_style_text_color(id(lbl_diag_firmware_label), primary, LV_PART_MAIN);' in firmware
+          assert 'lv_obj_set_style_text_color(id(lbl_diag_firmware), primary, LV_PART_MAIN);' in firmware
           assert 'lambda: \'return x == "Clock";\'' in firmware
           assert 'id: show_idle_clock_screen' in firmware
           assert 'id: apply_idle_screen_off' in firmware
+          deploy_script = Path("scripts/deploy-thermostat.sh").read_text()
+          assert 'Installed firmware identifier: $BUILD_IDENTIFIER' in deploy_script
+          assert 'Compile this exact file in ESPHome Dashboard: $FIRMWARE_TARGET' in deploy_script
+          assert 'grep -Fqx "$EXPECTED_BUILD_IDENTIFIER_LINE" "$FIRMWARE_TARGET"' in deploy_script
           history_unit = firmware.split("id: lbl_history_axis_temp", 1)[1].split("id: lbl_history_loading", 1)[0]
           assert "x: 4" in history_unit and "width: 36" in history_unit and 'text: "[°C]"' in history_unit
           assert 'const float padding = fmaxf(0.5f, data_span * 0.08f);' in firmware
