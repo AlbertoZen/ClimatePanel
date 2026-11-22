@@ -289,7 +289,8 @@ class HistoryCard : public tessera::Card {
     lv_obj_set_style_bg_opa(activity_background_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(activity_background_, 0, 0);
     lv_obj_set_style_pad_all(activity_background_, 0, 0);
-    lv_obj_remove_flag(activity_background_, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(activity_background_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(activity_background_, LV_OBJ_FLAG_SCROLLABLE);
 
     for (int i = 0; i < 5; ++i) {
       grid_points_[i][0] = {0, static_cast<lv_value_precise_t>(i * plot_h_ / 4)};
@@ -463,7 +464,8 @@ class HistoryCard : public tessera::Card {
           lv_obj_set_style_bg_opa(band, LV_OPA_20, 0);
           lv_obj_set_style_border_width(band, 0, 0);
           lv_obj_set_style_pad_all(band, 0, 0);
-          lv_obj_clear_flag(band, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(band, LV_OBJ_FLAG_CLICKABLE);
+          lv_obj_clear_flag(band, LV_OBJ_FLAG_SCROLLABLE);
         }
       }
       i = next;
