@@ -271,7 +271,7 @@ class HistoryCard : public tessera::Card {
       data["end_time"] = end_text;
       data["entity_ids"].to<JsonArray>().add(entity_);
       data["include_start_time_state"] = true;
-      data["significant_changes_only"] = true;
+      data["significant_changes_only"] = false;
       data["minimal_response"] = false;
       data["no_attributes"] = false;
       request_ids_[i] = tessera::send(plugin_, request.as<JsonObjectConst>());
@@ -578,7 +578,7 @@ class HeatingTile : public tessera::Tile {
     lv_obj_set_pos(next_, width_ - ui::px(32), ui::px(4));
     lv_obj_set_width(next_, ui::px(28));
 
-    diameter_ = std::max(ui::px(120), std::min(width_ * 56 / 100, height_ * 52 / 100));
+    diameter_ = std::max(ui::px(120), std::min(width_ * 70 / 100, height_ * 70 / 100));
     const int arc_x = (width_ - diameter_) / 2;
     const int arc_y = header_h_ + ui::px(8);
     const int centre_y = arc_y + diameter_ / 2;
@@ -599,22 +599,22 @@ class HeatingTile : public tessera::Tile {
     target_ = ui::label(parent, Font::DIGITS, theme::INK);
     lv_obj_set_width(target_, diameter_ - ui::px(40));
     lv_obj_set_style_text_align(target_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(target_, arc_x + ui::px(20), centre_y - ui::line_height(Font::DIGITS) / 2);
+    lv_obj_set_pos(target_, arc_x + ui::px(20), centre_y - ui::line_height(Font::DIGITS) / 2 - ui::px(14));
 
     unit_ = ui::label(parent, Font::BODY_LARGE, theme::MUTED);
     lv_obj_set_width(unit_, diameter_ - ui::px(30));
     lv_obj_set_style_text_align(unit_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(unit_, arc_x + ui::px(15), centre_y + ui::line_height(Font::DIGITS) / 2 - ui::px(2));
+    lv_obj_set_pos(unit_, arc_x + ui::px(15), centre_y + ui::px(8));
 
     current_ = ui::label(parent, Font::BODY_LARGE, theme::INK);
     lv_obj_set_width(current_, width_);
     lv_obj_set_style_text_align(current_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(current_, 0, arc_y + diameter_ + ui::px(28));
+    lv_obj_set_pos(current_, 0, centre_y + ui::line_height(Font::DIGITS) / 2 + ui::px(12));
 
     status_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(status_, width_);
     lv_obj_set_style_text_align(status_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(status_, ui::px(6), arc_y + diameter_ + ui::px(51));
+    lv_obj_set_pos(status_, ui::px(6), centre_y + ui::line_height(Font::DIGITS) / 2 + ui::px(40));
 
     const int key_size = ui::px(48);
     minus_ = ui::block(parent, theme::BUTTON);
@@ -627,7 +627,7 @@ class HeatingTile : public tessera::Tile {
     lv_obj_set_pos(plus_, std::min(width_ - key_size, arc_x + diameter_ + ui::px(8)), centre_y - key_size / 2);
     minus_label_ = ui::label(parent, Font::HEADLINE, theme::INK);
     plus_label_ = ui::label(parent, Font::HEADLINE, theme::INK);
-    ui::set_text(minus_label_, "−");
+    ui::set_text(minus_label_, "-");
     ui::set_text(plus_label_, "+");
     lv_obj_set_width(minus_label_, key_size);
     lv_obj_set_width(plus_label_, key_size);
@@ -645,16 +645,16 @@ class HeatingTile : public tessera::Tile {
     dual_high_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(dual_low_, width_ / 2);
     lv_obj_set_width(dual_high_, width_ / 2);
-    lv_obj_set_pos(dual_low_, 0, arc_y + diameter_ + ui::px(4));
-    lv_obj_set_pos(dual_high_, width_ / 2, arc_y + diameter_ + ui::px(4));
+    lv_obj_set_pos(dual_low_, 0, centre_y + ui::line_height(Font::DIGITS) / 2 + ui::px(62));
+    lv_obj_set_pos(dual_high_, width_ / 2, centre_y + ui::line_height(Font::DIGITS) / 2 + ui::px(62));
     lv_obj_set_style_text_align(dual_low_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(dual_high_, LV_TEXT_ALIGN_CENTER, 0);
-    dual_y_ = arc_y + diameter_ + ui::px(4);
+    dual_y_ = centre_y + ui::line_height(Font::DIGITS) / 2 + ui::px(62);
 
     environment_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(environment_, width_);
     lv_obj_set_style_text_align(environment_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(environment_, 0, arc_y + diameter_ + ui::px(75));
+    lv_obj_set_pos(environment_, 0, height_ - ui::px(96));
 
     mode_y_ = height_ - ui::px(70);
     mode_count_ = ui::label(parent, Font::BODY, theme::MUTED);
