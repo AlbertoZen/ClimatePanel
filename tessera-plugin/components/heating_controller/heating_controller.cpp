@@ -777,7 +777,16 @@ class HeatingTile : public tessera::Tile {
       return;
     }
     Room &room = rooms_[active_room_];
-    ui::set_text(header_, room.name[0] ? room.name : plugin_->text("room"));
+    char room_heading[64];
+    const std::string room_name = room.name[0] ? room.name : plugin_->text("room");
+    if (room_count_ > 1) {
+      uint8_t order = 0;
+      for (int i = 0; i <= active_room_; ++i) if (rooms_[i].configured) ++order;
+      std::snprintf(room_heading, sizeof(room_heading), "%s   %u/%u", room_name.c_str(), order, room_count_);
+    } else {
+      copy_text(room_heading, sizeof(room_heading), room_name.c_str());
+    }
+    ui::set_text(header_, room_heading);
 
     const bool has_dual = valid_number(room.low) && valid_number(room.high);
     const float base_target = has_dual ? (dual_edit_high_ ? room.high : room.low) : room.target;
@@ -879,15 +888,7 @@ class HeatingTile : public tessera::Tile {
         lv_obj_add_flag(mode_label_[i], LV_OBJ_FLAG_HIDDEN);
       }
     }
-    if (room_count_ > 1) {
-      uint8_t order = 0;
-      for (int i = 0; i <= active_room_; ++i) if (rooms_[i].configured) ++order;
-      char count_text[16];
-      std::snprintf(count_text, sizeof(count_text), "%u / %u", order, room_count_);
-      ui::set_text(mode_count_, count_text);
-    } else {
-      ui::set_text(mode_count_, "");
-    }
+    ui::set_text(mode_count_, "");
   }
 
   HeatingController *plugin_;

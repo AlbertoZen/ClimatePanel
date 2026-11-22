@@ -91,7 +91,7 @@ tiles:
         hint: outside_temperature_hint
       - id: show_current_temp_dot
         kind: toggle
-        default: true
+        default: false
         label: show_current_temp_dot
         hint: show_current_temp_dot_hint
 
