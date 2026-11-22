@@ -29,7 +29,8 @@
     "history_12h_ago": "12 h",
     "history_7d_ago": "7 d ago",
     "history_3_5d_ago": "3.5 d",
-    "history_now": "Now"
+    "history_now": "Now",
+    "history_loading_progress": "Loading Recorder history… %d / %d"
   },
   "app": {
     "name": "Heating Controller",
