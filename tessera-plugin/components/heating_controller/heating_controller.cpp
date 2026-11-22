@@ -189,22 +189,14 @@ class HistoryCard : public tessera::Card {
 
   void on_message(JsonObjectConst message) {
     const uint32_t request_id = message["re"] | 0u;
-    int chunk = -1;
-    for (uint16_t i = 0; i < expected_chunks_; ++i) {
-      if (request_ids_[i] && request_ids_[i] == request_id) {
-        chunk = static_cast<int>(i);
-        request_ids_[i] = 0;
-        break;
-      }
-    }
-    if (chunk < 0) return;
+    if (!active_request_id_ || request_id != active_request_id_) return;
+    active_request_id_ = 0;
 
     if (!(message["ok"] | false)) {
       failed_ = true;
     } else {
-      // history/history_during_period returns { "<entity_id>": [compressed states] }.
-      // There is deliberately no answer map here: the chart needs the hvac_action text
-      // as well as the numeric temperatures, so it reads the bounded raw climate states.
+      // Recorder must include attribute-only changes: hvac_action and temperatures
+      // often change while the climate entity's main state (heat/off) stays the same.
       const JsonObjectConst result = message["result"].as<JsonObjectConst>();
       const JsonArrayConst states = result[entity_].as<JsonArrayConst>();
       for (JsonVariantConst item : states) {
@@ -225,8 +217,18 @@ class HistoryCard : public tessera::Card {
     }
 
     ++completed_chunks_;
-    if (completed_chunks_ >= expected_chunks_) render_plot();
+    if (completed_chunks_ >= expected_chunks_) {
+      render_plot();
+    } else {
+      send_next_chunk();
+    }
     update_status();
+  }
+
+  void on_tick(uint32_t) override {
+    // A failed send is retried by the next tick; normal progress is response-driven.
+    if (expected_chunks_ && completed_chunks_ < expected_chunks_ && !active_request_id_)
+      send_next_chunk();
   }
 
   void on_theme() override {
@@ -357,11 +359,15 @@ class HistoryCard : public tessera::Card {
     period_hours_ = hours;
     paint_periods();
     update_axis_labels();
-    std::memset(request_ids_, 0, sizeof(request_ids_));
+    active_request_id_ = 0;  // Ignore late replies from the range we just left.
+    next_chunk_ = 0;
     sample_count_ = 0;
     completed_chunks_ = 0;
     failed_ = false;
     plot_ready_ = false;
+    history_end_ = tessera::epoch();
+    history_start_ = history_end_ - static_cast<uint32_t>(period_hours_) * ONE_HOUR;
+    expected_chunks_ = std::min<uint16_t>(period_hours_, MAX_HISTORY_CHUNKS);
     if (activity_background_) lv_obj_clean(activity_background_);
     if (room_line_) lv_obj_add_flag(room_line_, LV_OBJ_FLAG_HIDDEN);
     if (target_line_) lv_obj_add_flag(target_line_, LV_OBJ_FLAG_HIDDEN);
@@ -369,49 +375,45 @@ class HistoryCard : public tessera::Card {
       ui::set_text(status_, plugin_->text("history_loading"));
       lv_obj_clear_flag(status_, LV_OBJ_FLAG_HIDDEN);
     }
-    request_history();
-  }
-
-  void request_history() {
-    // Set the expected count before checking the clock or entity, so an early
-    // exit cannot leave a stale completion count from a previous period.
-    expected_chunks_ = std::min<uint16_t>(period_hours_, MAX_HISTORY_CHUNKS);
-    completed_chunks_ = 0;
-    const uint32_t now = tessera::epoch();
-    if (!now || entity_[0] == '\0') {
+    if (!history_end_ || entity_[0] == '\0') {
       failed_ = true;
       completed_chunks_ = expected_chunks_;
       update_status();
       return;
     }
+    send_next_chunk();
+  }
 
-    const uint32_t start = now - static_cast<uint32_t>(period_hours_) * ONE_HOUR;
+  void send_next_chunk() {
+    if (active_request_id_ || completed_chunks_ >= expected_chunks_ || next_chunk_ >= expected_chunks_)
+      return;
 
-    for (uint16_t i = 0; i < expected_chunks_; ++i) {
-      const uint32_t chunk_start = start + static_cast<uint32_t>(i) * ONE_HOUR;
-      const uint32_t chunk_end = (i == expected_chunks_ - 1) ? now : chunk_start + ONE_HOUR;
-      char start_text[32], end_text[32];
-      utc_text(chunk_start, start_text, sizeof(start_text));
-      utc_text(chunk_end, end_text, sizeof(end_text));
+    const uint32_t chunk_start = history_start_ + static_cast<uint32_t>(next_chunk_) * ONE_HOUR;
+    const uint32_t chunk_end = std::min(history_end_, chunk_start + ONE_HOUR);
+    char start_text[32], end_text[32];
+    utc_text(chunk_start, start_text, sizeof(start_text));
+    utc_text(chunk_end, end_text, sizeof(end_text));
 
-      JsonDocument request;
-      request["ask"] = "history/history_during_period";
-      JsonObject data = request["data"].to<JsonObject>();
-      data["start_time"] = start_text;
-      data["end_time"] = end_text;
-      data["entity_ids"].to<JsonArray>().add(entity_);
-      data["include_start_time_state"] = true;
-      data["significant_changes_only"] = true;
-      data["minimal_response"] = true;
-      data["no_attributes"] = false;
-      request_ids_[i] = tessera::send(plugin_, request.as<JsonObjectConst>());
-      if (!request_ids_[i]) {
-        failed_ = true;
-        ++completed_chunks_;
-      }
+    JsonDocument request;
+    request["ask"] = "history/history_during_period";
+    JsonObject data = request["data"].to<JsonObject>();
+    data["start_time"] = start_text;
+    data["end_time"] = end_text;
+    data["entity_ids"].to<JsonArray>().add(entity_);
+    data["include_start_time_state"] = true;
+    data["significant_changes_only"] = false;
+    data["minimal_response"] = true;
+    data["no_attributes"] = false;
+
+    ++next_chunk_;
+    active_request_id_ = tessera::send(plugin_, request.as<JsonObjectConst>());
+    if (!active_request_id_) {
+      failed_ = true;
+      ++completed_chunks_;
+      update_status();
+    } else {
+      update_status();
     }
-
-    if (completed_chunks_ >= expected_chunks_) render_plot();
   }
 
   void update_status() {
@@ -434,8 +436,8 @@ class HistoryCard : public tessera::Card {
     lv_obj_clean(activity_background_);
     if (sample_count_ < 2) return;
 
-    const uint32_t finish = tessera::epoch();
-    const uint32_t start = finish - static_cast<uint32_t>(period_hours_) * ONE_HOUR;
+    const uint32_t finish = history_end_;
+    const uint32_t start = history_start_;
     const uint32_t span = std::max<uint32_t>(1, finish - start);
 
     uint16_t i = 0;
@@ -493,8 +495,8 @@ class HistoryCard : public tessera::Card {
     sample_count_ = unique_count;
     draw_activity_bands();
 
-    const uint32_t finish = tessera::epoch();
-    const uint32_t start = finish - static_cast<uint32_t>(period_hours_) * ONE_HOUR;
+    const uint32_t finish = history_end_;
+    const uint32_t start = history_start_;
     const uint32_t span = std::max<uint32_t>(1, finish - start);
     float values_min = 100000.0f;
     float values_max = -100000.0f;
@@ -578,8 +580,10 @@ class HistoryCard : public tessera::Card {
 
   HeatingController *plugin_;
   char entity_[80] = {};
-  uint32_t request_ids_[MAX_HISTORY_CHUNKS] = {};
+  uint32_t active_request_id_ = 0;
+  uint32_t history_start_ = 0, history_end_ = 0;
   uint16_t expected_chunks_ = 0;
+  uint16_t next_chunk_ = 0;
   uint16_t completed_chunks_ = 0;
   uint16_t period_hours_ = 24;
   bool failed_ = false;
@@ -722,7 +726,7 @@ class HeatingTile : public tessera::Tile {
   void read_climate(JsonObjectConst entity, Room &room) {
     if (entity.isNull()) return;
     const JsonObjectConst attributes = entity["attributes"].as<JsonObjectConst>();
-    copy_text(room.name, sizeof(room.name), entity["name"] | room.name);
+    if (!room.name[0]) copy_text(room.name, sizeof(room.name), entity["name"] | "");
     copy_text(room.mode, sizeof(room.mode), entity["state"] | "");
     copy_text(room.action, sizeof(room.action), attributes["hvac_action"] | "");
     copy_text(room.unit, sizeof(room.unit), attributes["temperature_unit"] | "°C");
@@ -744,22 +748,34 @@ class HeatingTile : public tessera::Tile {
   }
 
   void create_ui(lv_obj_t *parent) {
+    // Tessera-style heading: icon and the name chosen in the Layout editor.
     header_h_ = ui::px(36);
+    header_icon_ = ui::label(parent, Font::ICON_SMALL, theme::ROW_ICON);
+    ui::set_text(header_icon_, ui::icon(0xF0393));  // thermostat
+    lv_obj_set_pos(header_icon_, ui::px(12), ui::px(5));
+    lv_obj_set_width(header_icon_, ui::px(24));
+
     header_ = ui::label(parent, Font::TITLE, theme::INK);
-    lv_obj_set_pos(header_, ui::px(12), ui::px(3));
-    lv_obj_set_width(header_, width_ - ui::px(24));
-    lv_obj_set_style_text_align(header_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(header_, ui::px(40), ui::px(4));
+    lv_obj_set_width(header_, width_ - ui::px(52));
+    lv_obj_set_style_text_align(header_, LV_TEXT_ALIGN_LEFT, 0);
 
-    mode_y_ = height_ - ui::px(56);
-    mode_height_ = ui::px(44);
-    mode_slot_width_ = ui::px(52);
-    mode_gap_ = ui::px(8);
-    mode_start_x_ = (width_ - (MAX_MODES * mode_slot_width_ + (MAX_MODES - 1) * mode_gap_)) / 2;
+    // Leave a proper finger-width gutter so the +/- keys do not sit over the arc.
+    mode_y_ = height_ - ui::px(48);
+    mode_height_ = ui::px(40);
+    mode_slot_width_ = ui::px(42);
+    mode_gap_ = ui::px(6);
 
-    arc_y_ = header_h_ + ui::px(4);
-    diameter_ = std::max(ui::px(120),
-                         std::min(width_ * 82 / 100, mode_y_ - arc_y_ - ui::px(8)));
+    const int key_size = ui::px(52);
+    const int side_gap = ui::px(8);
+    const int environment_y = mode_y_ - ui::px(34);
+    const int dial_top = header_h_ + ui::px(6);
+    const int dial_bottom = environment_y - ui::px(20);
+    const int available_height = std::max(ui::px(120), dial_bottom - dial_top);
+    const int available_width = std::max(ui::px(120), width_ - 2 * (key_size + side_gap));
+    diameter_ = std::max(ui::px(120), std::min(available_width, available_height));
     arc_x_ = (width_ - diameter_) / 2;
+    arc_y_ = dial_top + (available_height - diameter_) / 2;
     centre_x_ = width_ / 2;
     centre_y_ = arc_y_ + diameter_ / 2;
 
@@ -778,11 +794,6 @@ class HeatingTile : public tessera::Tile {
     lv_obj_set_style_arc_rounded(arc_, true, LV_PART_INDICATOR);
 
     target_whole_ = ui::label(parent, Font::DIGITS, theme::INK);
-    lv_obj_set_width(target_whole_, diameter_ * 62 / 100);
-    lv_obj_set_style_text_align(target_whole_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(target_whole_, centre_x_ - lv_obj_get_width(target_whole_) / 2,
-                   centre_y_ - ui::line_height(Font::DIGITS) / 2 - ui::px(18));
-
     target_unit_ = ui::label(parent, Font::BODY_LARGE, theme::MUTED);
     lv_obj_set_width(target_unit_, ui::px(42));
     target_decimal_ = ui::label(parent, Font::BODY_LARGE, theme::INK);
@@ -791,17 +802,15 @@ class HeatingTile : public tessera::Tile {
     current_ = ui::label(parent, Font::BODY_LARGE, theme::INK);
     lv_obj_set_width(current_, width_);
     lv_obj_set_style_text_align(current_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(current_, 0, centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(8));
 
     status_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(status_, width_);
     lv_obj_set_style_text_align(status_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(status_, 0, centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(34));
 
-    const int key_size = ui::px(64);
+    // The two controls are outside the dial track, leaving the arc visually unobstructed.
     stepper_h_ = key_size;
-    minus_x_ = std::max(0, arc_x_ - key_size + ui::px(8));
-    plus_x_ = width_ - key_size - minus_x_;
+    minus_x_ = side_gap;
+    plus_x_ = width_ - side_gap - key_size;
     stepper_y_ = centre_y_ - key_size / 2;
 
     minus_ = ui::block(parent, theme::STEPPER_KEY);
@@ -835,14 +844,14 @@ class HeatingTile : public tessera::Tile {
     lv_obj_set_width(dual_high_, width_ / 2);
     lv_obj_set_style_text_align(dual_low_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(dual_high_, LV_TEXT_ALIGN_CENTER, 0);
-    dual_y_ = centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(62);
+    dual_y_ = centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(58);
     lv_obj_set_pos(dual_low_, 0, dual_y_);
     lv_obj_set_pos(dual_high_, width_ / 2, dual_y_);
 
     environment_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(environment_, width_);
     lv_obj_set_style_text_align(environment_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(environment_, 0, mode_y_ - ui::px(28));
+    lv_obj_set_pos(environment_, 0, environment_y);
 
     for (int i = 0; i < MAX_MODES; ++i) {
       mode_background_[i] = ui::block(parent, theme::BUTTON);
@@ -903,6 +912,7 @@ class HeatingTile : public tessera::Tile {
   void paint() {
     if (!header_) return;
     ui::set_color(header_, theme::INK);
+    ui::set_color(header_icon_, theme::ROW_ICON);
     ui::set_color(target_whole_, theme::INK);
     ui::set_color(target_unit_, theme::MUTED);
     ui::set_color(target_decimal_, theme::INK);
@@ -931,21 +941,22 @@ class HeatingTile : public tessera::Tile {
     const bool has_dual = valid_number(room_.low) && valid_number(room_.high);
     const float base_target = has_dual ? (dual_edit_high_ ? room_.high : room_.low) : room_.target;
     const float shown_target = pending_valid_ ? pending_target_ : base_target;
+    char whole[16] = "--", decimal[8] = "";
     if (valid_number(shown_target)) {
       const int tenths = static_cast<int>(std::lround(shown_target * 10.0f));
-      char whole[16], decimal[8];
       std::snprintf(whole, sizeof(whole), "%d", tenths / 10);
       std::snprintf(decimal, sizeof(decimal), ".%d", std::abs(tenths % 10));
-      ui::set_text(target_whole_, whole);
-      ui::set_text(target_decimal_, decimal);
-    } else {
-      ui::set_text(target_whole_, "--");
-      ui::set_text(target_decimal_, "");
     }
+    ui::set_text(target_whole_, whole);
+    ui::set_text(target_decimal_, decimal);
     ui::set_text(target_unit_, room_.unit);
-    lv_obj_update_layout(target_whole_);
-    lv_obj_align_to(target_unit_, target_whole_, LV_ALIGN_OUT_RIGHT_TOP, ui::px(2), ui::px(12));
-    lv_obj_align_to(target_decimal_, target_whole_, LV_ALIGN_OUT_RIGHT_BOTTOM, -ui::px(2), -ui::px(18));
+    const int whole_width = std::max(ui::px(1), ui::text_width(whole, Font::DIGITS));
+    lv_obj_set_width(target_whole_, whole_width + ui::px(2));
+    lv_obj_set_style_text_align(target_whole_, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_pos(target_whole_, centre_x_ - whole_width / 2,
+                   centre_y_ - ui::line_height(Font::DIGITS) / 2 - ui::px(18));
+    lv_obj_align_to(target_unit_, target_whole_, LV_ALIGN_OUT_RIGHT_TOP, ui::px(5), ui::px(10));
+    lv_obj_align_to(target_decimal_, target_whole_, LV_ALIGN_OUT_RIGHT_BOTTOM, -ui::px(1), -ui::px(16));
 
     char current_text[64];
     if (valid_number(room_.current)) {
@@ -1062,7 +1073,7 @@ class HeatingTile : public tessera::Tile {
   bool pending_valid_ = false, pending_sent_ = false;
   float pending_target_ = NAN;
   uint32_t last_adjustment_at_ = 0, pending_sent_at_ = 0;
-  lv_obj_t *header_ = nullptr, *arc_ = nullptr;
+  lv_obj_t *header_ = nullptr, *header_icon_ = nullptr, *arc_ = nullptr;
   lv_obj_t *target_whole_ = nullptr, *target_unit_ = nullptr, *target_decimal_ = nullptr;
   lv_obj_t *current_ = nullptr, *status_ = nullptr;
   lv_obj_t *minus_ = nullptr, *plus_ = nullptr, *minus_label_ = nullptr, *plus_label_ = nullptr, *dot_ = nullptr;
