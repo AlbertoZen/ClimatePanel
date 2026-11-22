@@ -796,7 +796,7 @@ class HeatingTile : public tessera::Tile {
     lv_obj_set_style_text_align(status_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_pos(status_, 0, centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(34));
 
-    const int key_size = ui::px(58);
+    const int key_size = ui::px(64);
     stepper_h_ = key_size;
     minus_x_ = std::max(0, arc_x_ - key_size + ui::px(8));
     plus_x_ = width_ - key_size - minus_x_;
