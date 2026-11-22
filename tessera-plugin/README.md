@@ -1,57 +1,58 @@
 # Heating Controller for Tessera
 
-A multi-room thermostat interface for the Guition ESP32-S3-4848S040 4-inch display.
+A climate tile for the Guition ESP32-S3-4848S040 4-inch display.
 
-The plugin is a native Tessera extension. It uses Tessera's entity selectors and live state updates, Home Assistant climate actions, and Home Assistant's own Recorder history command. It does not install or require the standalone Heating Controller Home Assistant integration.
+The plugin is a native Tessera extension. It uses Tessera's climate entity selection and live state updates, Home Assistant climate actions, and Home Assistant's Recorder history command. It does not install or require the standalone Heating Controller Home Assistant integration.
 
 ## What it provides
 
-- A dedicated thermostat tile for two to four climate entities.
-- Linear room navigation, with the first configured climate as the Master room.
-- Current temperature, setpoint, HVAC action and available HVAC mode controls.
-- Setpoint adjustment with an optimistic display and a short debounce before sending the final value.
-- Dual setpoints (target_temp_low and target_temp_high) where supplied by the climate entity.
-- Optional humidity sensors for each room and an optional outdoor temperature or weather entity.
-- An optional current-temperature dot on the setpoint arc.
-- A custom 24-hour temperature history card with room and target temperature curves.
+- One thermostat tile for each climate entity. Add separate tiles to Tessera pages for Master, Kitchen, Bedroom, or any other climate entity.
+- A large setpoint dial, with the setpoint's whole number, decimal and unit arranged to match the standalone ESPHome display.
+- Large minus and plus controls for reliable setpoint adjustment, with a short debounce and optimistic display.
+- HVAC mode controls drawn as icons from Tessera's icon font.
+- Current temperature, HVAC action, optional humidity and optional outdoor temperature.
+- Optional current-temperature marker on the setpoint arc.
+- Tap the dial to open the temperature history.
+- History periods of 1 hour, 24 hours and 1 week.
+- Room temperature and target temperature curves, with shaded bands for recorded heating and cooling activity.
 
-Tessera remains responsible for display configuration, brightness, standby, screensavers, diagnostics, navigation, themes, Wi-Fi, and firmware updates.
+Tessera remains responsible for display configuration, brightness, standby, screensavers, diagnostics, page navigation, themes, Wi-Fi and firmware updates.
 
-## Set up
+## Install locally
 
-This repository keeps the standalone firmware on main. The Tessera plugin is developed on the tessera-plugin branch, in the tessera-plugin/ folder.
+The repository is private, so Tessera cannot retrieve it from the GitHub link directly. Use the local plugin folder:
 
-In Tessera, open **Plugins → Add with a link** and use:
+1. Copy the **contents** of this `tessera-plugin/` directory into `/config/tessera-plugins/heating_controller/`, next to the `esphome` directory.
+2. Check that `tessera-plugin.yaml` is directly inside `/config/tessera-plugins/heating_controller/`.
+3. In Tessera, add the Heating Controller plugin to your Guition screen.
+4. Open **Layout**, add a Heating Controller tile, and select the climate entity that tile should control.
+5. Add another tile for each other room. Use Tessera pages to organise the rooms; the plugin itself does not have room-navigation arrows.
 
-https://github.com/AlbertoZen/thermostat-esphome/tree/tessera-plugin/tessera-plugin
+You can also download the branch ZIP while signed in to GitHub:
+https://github.com/AlbertoZen/thermostat-esphome/archive/refs/heads/tessera-plugin.zip
 
-The plugin repository is private. If Tessera cannot retrieve it through the GitHub link, use the local-folder method described in Tessera's [plugin development guide](https://github.com/MaxGramser/tessera-plugins/blob/main/docs/MAKING_A_PLUGIN.md#9-put-it-on-your-screen): copy the contents of this `tessera-plugin/` directory into `/config/tessera-plugins/heating_controller/`, next to the `esphome` folder.
+## Controls
 
-Add the plugin to the Guition screen. Then open Layout, add the **Heating Controller** tile from Plugins, and choose the climate entities and optional sensors in the inspector.
+The large minus and plus buttons adjust the selected climate entity's setpoint. For a dual-target climate, tap the low or high target label first to select which end the buttons adjust.
 
-On the Guition's default **2 columns × 3 rows** grid, the tile can occupy the whole page. You can also change the grid to **3 columns × 5 rows** and resize the tile to cover that page. The minimum tile size is 2 × 3 cells so the main controls remain usable.
+Tap inside the dial to open the history card. The HVAC mode icons remain below the dial and send `climate.set_hvac_mode` when tapped.
+
+The plugin uses Tessera's tile tap API. That API does not expose the native climate card's drag or hold gestures, so setpoint adjustment is through the large on-screen minus and plus controls rather than dragging the arc.
 
 ## History
 
-The history card requests Home Assistant's history/history_during_period command in four six-hour intervals. This keeps each request bounded by Tessera's response-size limit while retaining the climate entity's Recorder attributes.
+The card provides 1h, 24h and 1w period selectors. The graph shows room temperature and target temperature, with amber bands for heating and blue bands for cooling. These activity bands are derived from the climate entity's historical `hvac_action` attribute; the Home Assistant Recorder must retain those climate states and attributes for the selected period.
 
-Version 0.1 displays the room-temperature and target-temperature curves. The previous standalone chart's HVAC activity bands are not included yet: Tessera's bounded answer mapper currently handles compact numeric arrays, but not a parallel list of categorical HVAC states. The graph uses the climate entity's history directly; no additional Recorder integration is installed.
+To stay within Tessera's bounded Home Assistant response size while retaining the climate attributes needed for activity, the plugin requests history in one-hour slices. The 1-week view therefore makes more requests and may take longer to finish loading than the shorter periods.
 
-## Deliberate first-version limitations
+No additional Recorder integration is installed. The history comes from Home Assistant's existing `history/history_during_period` websocket command.
 
-- Room icons are not independently configurable yet; the display uses room names from the selected entities.
-- The selected room starts at the Master room after a reboot.
-- HVAC activity bands, the standalone clock, diagnostics and display-idle controls are delegated to Tessera or deferred.
-- A Home Assistant action being sent is not proof that it completed. The tile keeps the optimistic setpoint briefly and reconciles it against subsequent entity updates.
+## Development notes
 
-## Development
+- Plugin API target: 0.24.
+- Board: Guition.
+- The standalone firmware remains on the repository's `main` branch; this plugin is developed on `tessera-plugin`.
+- Tessera's official checker validates the manifest, translations, folder layout and static plugin rules. It does not compile the complete ESPHome firmware or flash the screen.
+- A full firmware build and physical Guition test are still required after installing each plugin revision.
 
-The manifest targets plugin API 0.24, matching the current Tessera release API. The plugin is Guition-only for this first iteration.
-
-From a checkout of MaxGramser/tessera-plugins, Tessera's own checker can validate this folder with:
-
-python3 tools/check.py /path/to/tessera-plugin
-
-For the plugin preview and physical testing, follow Tessera's docs/TESTING.md and docs/PREVIEW.md.
-
-No physical Guition hardware test or firmware flash is implied by this source commit.
+For Tessera's local testing instructions, see the [plugin development guide](https://github.com/MaxGramser/tessera-plugins/blob/main/docs/MAKING_A_PLUGIN.md#9-put-it-on-your-screen).
