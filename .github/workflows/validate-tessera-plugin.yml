@@ -1,0 +1,42 @@
+name: Validate Tessera plugin
+
+on:
+  push:
+    branches:
+      - tessera-plugin
+    paths:
+      - "tessera-plugin/**"
+      - ".github/workflows/validate-tessera-plugin.yml"
+  pull_request:
+    paths:
+      - "tessera-plugin/**"
+      - ".github/workflows/validate-tessera-plugin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Tessera plugin checker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Check out Tessera plugin tools
+        uses: actions/checkout@v4
+        with:
+          repository: MaxGramser/tessera-plugins
+          ref: main
+          path: .tessera-plugins
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install checker dependency
+        run: python -m pip install pyyaml
+
+      - name: Validate plugin manifest, translations and C++ rules
+        run: python .tessera-plugins/tools/check.py tessera-plugin

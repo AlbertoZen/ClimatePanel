@@ -17,7 +17,7 @@ The plugin is a native Tessera extension. It uses Tessera's entity selectors and
 
 Tessera remains responsible for display configuration, brightness, standby, screensavers, diagnostics, navigation, themes, Wi-Fi, and firmware updates.
 
-## Install for testing
+## Set up
 
 This repository keeps the standalone firmware on main. The Tessera plugin is developed on the tessera-plugin branch, in the tessera-plugin/ folder.
 
