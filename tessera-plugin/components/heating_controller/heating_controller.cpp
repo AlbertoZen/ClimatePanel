@@ -431,7 +431,11 @@ class HistoryCard : public tessera::Card {
   void update_status() {
     if (!status_) return;
     if (completed_chunks_ < expected_chunks_) {
-      ui::set_text(status_, plugin_->text("history_loading"));
+      char progress[80];
+      const uint16_t current = std::min<uint16_t>(completed_chunks_ + 1, expected_chunks_);
+      const std::string format = plugin_->text("history_loading_progress");
+      std::snprintf(progress, sizeof(progress), format.c_str(), current, expected_chunks_);
+      ui::set_text(status_, progress);
       lv_obj_clear_flag(status_, LV_OBJ_FLAG_HIDDEN);
     } else if (!plot_ready_ || sample_count_ < 2) {
       ui::set_text(status_, plugin_->text(failed_ ? "history_unavailable" : "history_no_data"));
