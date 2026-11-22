@@ -183,6 +183,10 @@ class HistoryCard : public tessera::Card {
     if (room_legend_) ui::set_color(room_legend_, theme::ACCENT);
     if (target_legend_) ui::set_color(target_legend_, theme::MUTED);
     if (status_) ui::set_color(status_, theme::MUTED);
+    for (lv_obj_t *label : axis_labels_) if (label) ui::set_color(label, theme::SUBTLE);
+    if (axis_start_) ui::set_color(axis_start_, theme::SUBTLE);
+    if (axis_mid_) ui::set_color(axis_mid_, theme::SUBTLE);
+    if (axis_now_) ui::set_color(axis_now_, theme::SUBTLE);
     for (lv_obj_t *line : grid_lines_) {
       if (line) lv_obj_set_style_line_color(line, ui::color(theme::GRID), 0);
     }
@@ -745,6 +749,23 @@ class HeatingTile : public tessera::Tile {
 
   void paint() {
     if (!header_) return;
+    ui::set_color(header_, theme::INK);
+    ui::set_color(previous_, theme::INK);
+    ui::set_color(next_, theme::INK);
+    ui::set_color(target_, theme::INK);
+    ui::set_color(unit_, theme::MUTED);
+    ui::set_color(current_, theme::INK);
+    ui::set_color(status_, theme::MUTED);
+    ui::set_color(minus_label_, theme::INK);
+    ui::set_color(plus_label_, theme::INK);
+    ui::set_color(environment_, theme::MUTED);
+    ui::set_color(mode_count_, theme::MUTED);
+    ui::set_color(history_, theme::ACCENT);
+    lv_obj_set_style_bg_color(minus_, ui::color(theme::BUTTON), 0);
+    lv_obj_set_style_bg_color(plus_, ui::color(theme::BUTTON), 0);
+    lv_obj_set_style_arc_color(arc_, ui::color(theme::TRACK), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc_, ui::color(theme::ACCENT), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(dot_, ui::color(theme::ACCENT), 0);
     if (!room_count_) {
       ui::set_text(header_, plugin_->text("choose_rooms"));
       ui::set_text(target_, "--");
