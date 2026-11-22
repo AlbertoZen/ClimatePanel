@@ -21,11 +21,11 @@ permissions:
 answers:
   - command: history/history_during_period
     fields:
-      times: { path: "$[*][*].lu", as: numbers }
-      temperatures: { path: "$[*][*].a.current_temperature", as: numbers }
-      targets: { path: "$[*][*].a.temperature", as: numbers }
-      target_lows: { path: "$[*][*].a.target_temp_low", as: numbers }
-      target_highs: { path: "$[*][*].a.target_temp_high", as: numbers }
+      times: { path: "[*][*].lu", as: numbers }
+      temperatures: { path: "[*][*].a.current_temperature", as: numbers }
+      targets: { path: "[*][*].a.temperature", as: numbers }
+      target_lows: { path: "[*][*].a.target_temp_low", as: numbers }
+      target_highs: { path: "[*][*].a.target_temp_high", as: numbers }
 
 tiles:
   - id: heating
