@@ -372,6 +372,10 @@ class HistoryCard : public tessera::Card {
   }
 
   void request_history() {
+    // Set the expected count before checking the clock or entity, so an early
+    // exit cannot leave a stale completion count from a previous period.
+    expected_chunks_ = std::min<uint16_t>(period_hours_, MAX_HISTORY_CHUNKS);
+    completed_chunks_ = 0;
     const uint32_t now = tessera::epoch();
     if (!now || entity_[0] == '\0') {
       failed_ = true;
@@ -381,8 +385,6 @@ class HistoryCard : public tessera::Card {
     }
 
     const uint32_t start = now - static_cast<uint32_t>(period_hours_) * ONE_HOUR;
-    expected_chunks_ = period_hours_;  // one-hour requests keep each raw response small enough for activity states
-    if (expected_chunks_ > MAX_HISTORY_CHUNKS) expected_chunks_ = MAX_HISTORY_CHUNKS;
 
     for (uint16_t i = 0; i < expected_chunks_; ++i) {
       const uint32_t chunk_start = start + static_cast<uint32_t>(i) * ONE_HOUR;
@@ -444,13 +446,19 @@ class HistoryCard : public tessera::Card {
         const uint32_t band_start = std::max(start, samples_[i].time);
         const uint32_t band_end = next < sample_count_ ? std::min(finish, samples_[next].time) : finish;
         if (band_end > band_start) {
-          const int x1 = static_cast<int>((static_cast<uint64_t>(band_start - start) * plot_w_) / span);
-          const int x2 = static_cast<int>((static_cast<uint64_t>(band_end - start) * plot_w_) / span);
-          const int band_width = std::max(1, x2 - x1);
+          const int raw_x1 = static_cast<int>((static_cast<uint64_t>(band_start - start) * plot_w_) / span);
+          const int raw_x2 = static_cast<int>((static_cast<uint64_t>(band_end - start) * plot_w_) / span);
+          const int x1 = std::clamp(raw_x1, 0, plot_w_);
+          const int x2 = std::clamp(raw_x2, 0, plot_w_);
+          const int band_width = x2 - x1;
+          if (band_width <= 0) {
+            i = next;
+            continue;
+          }
           lv_obj_t *band = lv_obj_create(activity_background_);
           lv_obj_remove_style_all(band);
-          lv_obj_set_pos(band, std::max(0, x1), 0);
-          lv_obj_set_size(band, std::min(plot_w_ - std::max(0, x1), band_width), plot_h_);
+          lv_obj_set_pos(band, x1, 0);
+          lv_obj_set_size(band, band_width, plot_h_);
           lv_obj_set_style_bg_color(band, ui::color(action == 1 ? theme::MARK_AMBER : theme::MARK_BLUE), 0);
           lv_obj_set_style_bg_opa(band, LV_OPA_20, 0);
           lv_obj_set_style_border_width(band, 0, 0);
@@ -1011,6 +1019,9 @@ class HeatingTile : public tessera::Tile {
     }
 
     const uint8_t modes = room_.mode_count;
+    if (modes > 0) {
+      mode_start_x_ = (width_ - (modes * mode_slot_width_ + (modes - 1) * mode_gap_)) / 2;
+    }
     for (int i = 0; i < MAX_MODES; ++i) {
       if (i < modes) {
         const int x = mode_start_x_ + i * (mode_slot_width_ + mode_gap_);
