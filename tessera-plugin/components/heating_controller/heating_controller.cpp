@@ -788,7 +788,8 @@ class HeatingTile : public tessera::Tile {
     if (valid_number(room.current)) {
       char number[20];
       format_number(number, sizeof(number), room.current);
-      std::snprintf(current_text, sizeof(current_text), "%s %s", plugin_->text("current_temperature"), number);
+      const std::string current_label = plugin_->text("current_temperature");
+      std::snprintf(current_text, sizeof(current_text), "%s %s", current_label.c_str(), number);
     } else {
       copy_text(current_text, sizeof(current_text), plugin_->text("current_unavailable"));
     }
@@ -809,8 +810,10 @@ class HeatingTile : public tessera::Tile {
       const float shown_high = pending_valid_ && dual_edit_high_ ? pending_target_ : room.high;
       format_number(low_text, sizeof(low_text), shown_low);
       format_number(high_text, sizeof(high_text), shown_high);
-      std::snprintf(left, sizeof(left), "%s %s°", plugin_->text("heating"), low_text);
-      std::snprintf(right, sizeof(right), "%s %s°", plugin_->text("cooling"), high_text);
+      const std::string heating_label = plugin_->text("heating");
+      const std::string cooling_label = plugin_->text("cooling");
+      std::snprintf(left, sizeof(left), "%s %s°", heating_label.c_str(), low_text);
+      std::snprintf(right, sizeof(right), "%s %s°", cooling_label.c_str(), high_text);
       ui::set_text(dual_low_, left);
       ui::set_text(dual_high_, right);
       lv_obj_clear_flag(dual_low_, LV_OBJ_FLAG_HIDDEN);
@@ -842,7 +845,8 @@ class HeatingTile : public tessera::Tile {
 
     if (valid_number(outside_temperature_)) {
       char outside_text[40];
-      std::snprintf(outside_text, sizeof(outside_text), "%s %.1f°", plugin_->text("outside_short"), outside_temperature_);
+      const std::string outside_label = plugin_->text("outside_short");
+      std::snprintf(outside_text, sizeof(outside_text), "%s %.1f°", outside_label.c_str(), outside_temperature_);
       ui::set_text(environment_, outside_text);
     } else {
       ui::set_text(environment_, "");
