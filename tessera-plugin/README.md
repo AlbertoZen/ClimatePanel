@@ -18,7 +18,7 @@ The plugin is a native Tessera extension. It uses Tessera's climate entity selec
 
 Tessera remains responsible for display configuration, brightness, standby, screensavers, diagnostics, page navigation, themes, Wi-Fi and firmware updates.
 
-## Install locally
+## Set up
 
 The repository is private, so Tessera cannot retrieve it from the GitHub link directly. Use the local plugin folder:
 
