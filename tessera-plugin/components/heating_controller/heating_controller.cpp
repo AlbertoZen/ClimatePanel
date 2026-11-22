@@ -145,6 +145,7 @@ class HistoryCard : public tessera::Card {
     if (!(message["ok"] | false)) {
       failed_ = true;
       received_mask_ |= static_cast<uint8_t>(1U << chunk);
+      if (received_mask_ == 0x0F) render_plot();
       update_status();
       return;
     }
@@ -155,11 +156,10 @@ class HistoryCard : public tessera::Card {
     const JsonArrayConst targets = result["targets"].as<JsonArrayConst>();
     const JsonArrayConst lows = result["target_lows"].as<JsonArrayConst>();
     const JsonArrayConst highs = result["target_highs"].as<JsonArrayConst>();
-    size_t count = times.size();
-    count = std::min(count, temperatures.size());
-    count = std::min(count, targets.size());
-    count = std::min(count, lows.size());
-    count = std::min(count, highs.size());
+    // Current temperature is the common series. The target fields vary by climate type:
+    // single-target climates provide "temperature", dual-target climates provide low/high.
+    // An absent optional target array must not discard the entire history response.
+    const size_t count = std::min(times.size(), temperatures.size());
 
     for (size_t i = 0; i < count && sample_count_ < MAX_HISTORY_SAMPLES; ++i) {
       const uint32_t timestamp = static_cast<uint32_t>(number_of(times[i], 0));
@@ -167,9 +167,9 @@ class HistoryCard : public tessera::Card {
       HistorySample sample;
       sample.time = timestamp;
       sample.temperature = number_of(temperatures[i]);
-      sample.target = number_of(targets[i]);
-      sample.low = number_of(lows[i]);
-      sample.high = number_of(highs[i]);
+      sample.target = i < targets.size() ? number_of(targets[i]) : NAN;
+      sample.low = i < lows.size() ? number_of(lows[i]) : NAN;
+      sample.high = i < highs.size() ? number_of(highs[i]) : NAN;
       samples_[sample_count_++] = sample;
     }
 
@@ -280,7 +280,10 @@ class HistoryCard : public tessera::Card {
         received_mask_ |= static_cast<uint8_t>(1U << i);
       }
     }
-    if (received_mask_ == 0x0F) update_status();
+    if (received_mask_ == 0x0F) {
+      render_plot();
+      update_status();
+    }
   }
 
   void update_status() {
@@ -683,8 +686,8 @@ class HeatingTile : public tessera::Tile {
     int candidate = active_room_;
     for (int attempt = 0; attempt < MAX_ROOMS; ++attempt) {
       candidate += direction;
-      if (candidate < 0) candidate = MAX_ROOMS - 1;
-      if (candidate >= MAX_ROOMS) candidate = 0;
+      // Room navigation is deliberately linear: reaching either end does not wrap around.
+      if (candidate < 0 || candidate >= MAX_ROOMS) return;
       if (rooms_[candidate].configured) {
         active_room_ = candidate;
         pending_valid_ = false;
