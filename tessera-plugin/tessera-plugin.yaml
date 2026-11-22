@@ -1,5 +1,5 @@
 id: heating_controller
-version: 0.1.1
+version: 0.2.0
 api: "0.24"
 icon: thermostat
 maintainer: AlbertoZen
@@ -18,71 +18,22 @@ permissions:
   ha_commands:
     - history/history_during_period
 
-answers:
-  - command: history/history_during_period
-    fields:
-      times: { path: "[*][*].lu", as: numbers }
-      temperatures: { path: "[*][*].a.current_temperature", as: numbers }
-      targets: { path: "[*][*].a.temperature", as: numbers }
-      target_lows: { path: "[*][*].a.target_temp_low", as: numbers }
-      target_highs: { path: "[*][*].a.target_temp_high", as: numbers }
-
 tiles:
   - id: heating
     name: tile_name
     icon: thermostat
+    domains: [climate]
+    attributes: [current_temperature, temperature, target_temp_low, target_temp_high, min_temp, max_temp, target_temp_step, hvac_modes, hvac_action, temperature_unit]
     sizes: { min: 2x3, max: 3x5 }
     memory: 2200
     example: tile_example
     options:
-      - id: climate_1
-        kind: entity
-        domains: [climate]
-        attributes: [current_temperature, temperature, target_temp_low, target_temp_high, min_temp, max_temp, target_temp_step, hvac_modes, hvac_action, temperature_unit]
-        label: master_room
-        hint: master_room_hint
-      - id: climate_2
-        kind: entity
-        domains: [climate]
-        attributes: [current_temperature, temperature, target_temp_low, target_temp_high, min_temp, max_temp, target_temp_step, hvac_modes, hvac_action, temperature_unit]
-        label: second_room
-        hint: second_room_hint
-      - id: climate_3
-        kind: entity
-        domains: [climate]
-        attributes: [current_temperature, temperature, target_temp_low, target_temp_high, min_temp, max_temp, target_temp_step, hvac_modes, hvac_action, temperature_unit]
-        label: third_room
-        hint: third_room_hint
-      - id: climate_4
-        kind: entity
-        domains: [climate]
-        attributes: [current_temperature, temperature, target_temp_low, target_temp_high, min_temp, max_temp, target_temp_step, hvac_modes, hvac_action, temperature_unit]
-        label: fourth_room
-        hint: fourth_room_hint
-      - id: humidity_1
+      - id: humidity_sensor
         kind: entity
         domains: [sensor]
         attributes: [unit_of_measurement, device_class]
-        label: humidity_1
-        hint: humidity_hint
-      - id: humidity_2
-        kind: entity
-        domains: [sensor]
-        attributes: [unit_of_measurement, device_class]
-        label: humidity_2
-        hint: humidity_hint
-      - id: humidity_3
-        kind: entity
-        domains: [sensor]
-        attributes: [unit_of_measurement, device_class]
-        label: humidity_3
-        hint: humidity_hint
-      - id: humidity_4
-        kind: entity
-        domains: [sensor]
-        attributes: [unit_of_measurement, device_class]
-        label: humidity_4
-        hint: humidity_hint
+        label: humidity_sensor
+        hint: humidity_sensor_hint
       - id: outside_temperature
         kind: entity
         domains: [sensor, weather]
