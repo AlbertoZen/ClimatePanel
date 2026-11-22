@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+- Fixed LVGL flag operations for the heating/cooling activity band containers.
+
+
 ## 0.2.0
 - One climate entity per tile; use Tessera pages for room navigation.
 - Removed the room navigation arrows and the in-tile history link. Tapping the dial opens history.
