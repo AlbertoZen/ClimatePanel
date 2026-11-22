@@ -25,7 +25,7 @@ In Tessera, open **Plugins → Add with a link** and use:
 
 https://github.com/AlbertoZen/thermostat-esphome/tree/tessera-plugin/tessera-plugin
 
-The plugin repository is private. If Tessera cannot retrieve a private GitHub repository from your installation, use the local-folder method described in Tessera's [plugin development guide](https://github.com/MaxGramser/tessera-plugins/blob/main/docs/MAKING_A_PLUGIN.md#9-put-it-on-your-screen), placing the folder under /config/tessera-plugins/heating_controller/.
+The plugin repository is private. If Tessera cannot retrieve it through the GitHub link, use the local-folder method described in Tessera's [plugin development guide](https://github.com/MaxGramser/tessera-plugins/blob/main/docs/MAKING_A_PLUGIN.md#9-put-it-on-your-screen): copy the contents of this `tessera-plugin/` directory into `/config/tessera-plugins/heating_controller/`, next to the `esphome` folder.
 
 Add the plugin to the Guition screen. Then open Layout, add the **Heating Controller** tile from Plugins, and choose the climate entities and optional sensors in the inspector.
 
