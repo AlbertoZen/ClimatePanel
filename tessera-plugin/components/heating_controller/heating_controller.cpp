@@ -216,6 +216,7 @@ class HistoryCard : public tessera::Card {
       }
     }
 
+    send_attempts_ = 0;
     ++completed_chunks_;
     if (completed_chunks_ >= expected_chunks_) {
       render_plot();
@@ -226,7 +227,7 @@ class HistoryCard : public tessera::Card {
   }
 
   void on_tick(uint32_t) override {
-    // A failed send is retried by the next tick; normal progress is response-driven.
+    // If the host cannot accept a request yet, retry the same hour next second.
     if (expected_chunks_ && completed_chunks_ < expected_chunks_ && !active_request_id_)
       send_next_chunk();
   }
@@ -361,6 +362,7 @@ class HistoryCard : public tessera::Card {
     update_axis_labels();
     active_request_id_ = 0;  // Ignore late replies from the range we just left.
     next_chunk_ = 0;
+    send_attempts_ = 0;
     sample_count_ = 0;
     completed_chunks_ = 0;
     failed_ = false;
@@ -405,15 +407,25 @@ class HistoryCard : public tessera::Card {
     data["minimal_response"] = true;
     data["no_attributes"] = false;
 
-    ++next_chunk_;
-    active_request_id_ = tessera::send(plugin_, request.as<JsonObjectConst>());
-    if (!active_request_id_) {
-      failed_ = true;
-      ++completed_chunks_;
+    const uint32_t request_id = tessera::send(plugin_, request.as<JsonObjectConst>());
+    if (!request_id) {
+      // A full request queue must not silently skip an hour of the week.
+      // Retry on the next card tick; after three failed sends, mark this hour
+      // unavailable and keep the rest of the history moving.
+      if (++send_attempts_ >= 3) {
+        failed_ = true;
+        send_attempts_ = 0;
+        ++next_chunk_;
+        ++completed_chunks_;
+        if (completed_chunks_ >= expected_chunks_) render_plot();
+      }
       update_status();
-    } else {
-      update_status();
+      return;
     }
+    active_request_id_ = request_id;
+    ++next_chunk_;
+    send_attempts_ = 0;
+    update_status();
   }
 
   void update_status() {
@@ -585,6 +597,7 @@ class HistoryCard : public tessera::Card {
   uint16_t expected_chunks_ = 0;
   uint16_t next_chunk_ = 0;
   uint16_t completed_chunks_ = 0;
+  uint8_t send_attempts_ = 0;
   uint16_t period_hours_ = 24;
   bool failed_ = false;
   bool plot_ready_ = false;
@@ -802,10 +815,14 @@ class HeatingTile : public tessera::Tile {
     current_ = ui::label(parent, Font::BODY_LARGE, theme::INK);
     lv_obj_set_width(current_, width_);
     lv_obj_set_style_text_align(current_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(current_, 0,
+                   centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(8));
 
     status_ = ui::label(parent, Font::BODY, theme::MUTED);
     lv_obj_set_width(status_, width_);
     lv_obj_set_style_text_align(status_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(status_, 0,
+                   centre_y_ + ui::line_height(Font::DIGITS) / 2 + ui::px(34));
 
     // The two controls are outside the dial track, leaving the arc visually unobstructed.
     stepper_h_ = key_size;
@@ -951,12 +968,16 @@ class HeatingTile : public tessera::Tile {
     ui::set_text(target_decimal_, decimal);
     ui::set_text(target_unit_, room_.unit);
     const int whole_width = std::max(ui::px(1), ui::text_width(whole, Font::DIGITS));
+    const int suffix_width = ui::px(44);
+    const int suffix_gap = ui::px(5);
+    const int group_width = whole_width + suffix_gap + suffix_width;
     lv_obj_set_width(target_whole_, whole_width + ui::px(2));
     lv_obj_set_style_text_align(target_whole_, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_pos(target_whole_, centre_x_ - whole_width / 2,
+    lv_obj_set_pos(target_whole_, centre_x_ - group_width / 2,
                    centre_y_ - ui::line_height(Font::DIGITS) / 2 - ui::px(18));
-    lv_obj_align_to(target_unit_, target_whole_, LV_ALIGN_OUT_RIGHT_TOP, ui::px(5), ui::px(10));
-    lv_obj_align_to(target_decimal_, target_whole_, LV_ALIGN_OUT_RIGHT_BOTTOM, -ui::px(1), -ui::px(16));
+    lv_obj_update_layout(target_whole_);
+    lv_obj_align_to(target_unit_, target_whole_, LV_ALIGN_OUT_RIGHT_TOP, suffix_gap, ui::px(10));
+    lv_obj_align_to(target_decimal_, target_whole_, LV_ALIGN_OUT_RIGHT_BOTTOM, suffix_gap, -ui::px(16));
 
     char current_text[64];
     if (valid_number(room_.current)) {
