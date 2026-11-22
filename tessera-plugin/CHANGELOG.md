@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+- Reworked the thermostat face: Tessera-style top-left entity icon/name, centred setpoint group and unobstructed dial with side controls.
+- Fixed the 1-week Recorder loader to request one hour at a time, include attribute-only changes, and show loading progress.
+- Preserved the tile name chosen in Tessera Layout.
+
 ## 0.2.1
 - Fixed LVGL flag operations for the heating/cooling activity band containers.
 
