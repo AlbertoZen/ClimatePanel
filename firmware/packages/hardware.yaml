@@ -1,0 +1,99 @@
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    advanced:
+      # Use ESPHome's native ESP-IDF performance optimisation setting.
+      compiler_optimization: PERF
+      # Equivalent to disabling ESP-IDF compiler optimisation assertions.
+      assertion_level: DISABLE
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      # Keep the 1 kHz FreeRTOS tick for finer task scheduling.
+      CONFIG_FREERTOS_HZ: "1000"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+spi:
+  - id: lcd_spi
+    clk_pin: 48
+    mosi_pin: 47
+
+i2c:
+  - id: touchscreen_bus
+    scl:
+      ignore_strapping_warning: true
+      number: 45
+    sda: 19
+
+display:
+  - platform: st7701s
+    id: tft_display
+    auto_clear_enabled: false
+    color_order: RGB
+    cs_pin: 39
+    data_pins:
+      blue: [4, 5, 6, 7, 15]
+      green: [8, 20, 3, 46, 9, 10]
+      red: [11, 12, 13, 14, 0]
+    data_rate: 2MHz
+    de_pin: 18
+    dimensions:
+      height: 480
+      width: 480
+    hsync_back_porch: 20
+    hsync_front_porch: 10
+    hsync_pin: 16
+    hsync_pulse_width: 8
+    init_sequence: [1, [255, 119, 1, 0, 0, 16], [205, 0]]
+    invert_colors: false
+    pclk_frequency: 12MHz
+    pclk_inverted: false
+    pclk_pin: 21
+    spi_mode: MODE3
+    update_interval: never
+    vsync_back_porch: 10
+    vsync_front_porch: 10
+    vsync_pin: 17
+    vsync_pulse_width: 8
+
+touchscreen:
+  - platform: gt911
+    id: tft_touch
+    i2c_id: touchscreen_bus
+    display: tft_display
+    on_release:
+      - script.execute: display_user_activity
+
+# -------------------------------------------------------------------------
+# FONTS (Google Sans Flex Typography)
+# -------------------------------------------------------------------------
+
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: 38
+    # 19.531kHz is ESPHome’s recommended 12-bit PWM point for the ESP32-S3.
+    # This is the practical high-frequency limit while retaining fine brightness control.
+    frequency: 19531Hz
+    # Allow very low backlight levels while keeping zero as fully off.
+    min_power: 0.001
+    zero_means_zero: true
+
+light:
+  - platform: monochromatic
+    id: display_backlight
+    internal: true
+    # Linear gamma (1.0) prevents 10% brightness from being crushed to 0.16% duty cycle
+    gamma_correct: 1.0
+    # Smooth all brightness changes, including waking from the dim clock and automatic dimming.
+    default_transition_length: 2s
+    output: backlight_output
+    restore_mode: ALWAYS_ON
