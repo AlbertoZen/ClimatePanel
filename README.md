@@ -19,10 +19,11 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 
 ## Project contents
 
-- `display-1.yaml` — ESPHome display firmware.
+- `display-1.yaml` — small ESPHome entry-point template.
+- `firmware/packages/` — modular firmware implementation, split into hardware, networking, runtime, assets and individual LVGL UI packages.
 - `custom_components/climatepanel/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history, plus its own integration brand icon.
 - `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
-- `.github/workflows/validate-esphome.yml` — CI checks for the firmware, integration and deployment script.
+- `.github/workflows/validate-esphome.yml` — CI validates the merged, commit-pinned firmware configuration, integration and deployment script.
 
 Secrets are not stored in this repository. The Home Assistant installation keeps ESPHome credentials in `/config/esphome/secrets.yaml`.
 
@@ -64,7 +65,7 @@ Recorder reads run through Recorder's dedicated database executor. Recorder must
 
 ## Diagnostics
 
-The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script embeds this value in `/config/esphome/display-1.yaml`. The script prints `Installed firmware identifier: ...` only after verifying that the deployed file contains the Git value. Then compile and install **that exact file** in the ESPHome Dashboard. Do not compile `/config/climatepanel/display-1.yaml` from the Git checkout directly: that source file deliberately retains the `local` placeholder. You can independently confirm the deployed value with `grep build_identifier /config/esphome/display-1.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script generates `/config/esphome/climatepanel-display.yaml` with that identifier and pins every remote package to the exact same full Git commit. It verifies both values before installing the generated entry point. Compile and install **that exact generated file** in the ESPHome Dashboard. Do not compile the repository's `display-1.yaml` directly: it is a template whose defaults are deliberately `local` and `main`. You can independently confirm the deployed values with `grep -E 'build_identifier|firmware_ref' /config/esphome/climatepanel-display.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
 
 ## Home Assistant Marketplace installation
 
@@ -78,17 +79,17 @@ Select **Integration** as the repository category. After installation, restart H
 
 1. Ensure the integration directory is deployed to `/config/custom_components/climatepanel/`.
 2. Run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used. Confirm its output reports a tag or 12-character commit SHA.
-3. In the ESPHome Dashboard, compile and install `/config/esphome/display-1.yaml` (the deployed copy, not the Git checkout's source YAML).
+3. In the ESPHome Dashboard, compile and install `/config/esphome/climatepanel-display.yaml` (the generated, commit-pinned entry point, not the Git checkout's template).
 4. Restart Home Assistant when the script reports that the integration has changed.
 5. On the first migration from the old YAML package, add **ClimatePanel** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
 6. In **Settings → Devices & services → ESPHome**, open the display device's Configure dialog and ensure it is allowed to perform Home Assistant actions.
 
 The deployment script retires the former `/config/packages/climatepanel.yaml` package and archives it with the existing integration backup. It does not change the top-level packages include in `configuration.yaml`.
 
-The script validates the ESPHome YAML against the local secrets, backs up the active firmware YAML, deploys the integration and retires the old package. It does not restart Home Assistant, compile firmware or flash the ESP32.
+The script validates the merged ESPHome configuration against the local secrets and the exact Git commit referenced by the generated entry point. It backs up the previous firmware YAML, retires the old Dashboard entry point, deploys the integration and retires the old Home Assistant YAML package. It does not restart Home Assistant, compile firmware or flash the ESP32. Remote packages are downloaded at build time; the ESP32 does not need GitHub access at runtime.
 
 ## Development
 
 Releases use the date-based format `YYYY.MM.DD-REV`, for example `2026.11.25-1`. The revision starts at `1` for the first release on a date and increments for each additional release on that same date. The Home Assistant manifest version and GitHub release tag must always match. The release workflow checks both the date and the next revision before publishing.
 
-Firmware metadata is generated from Git: the deployment script fetches tags and embeds the exact tag when the deployed commit is tagged, otherwise a 12-character commit SHA. No manual firmware revision needs to be maintained. The CI workflow validates the ESPHome configuration for branch commits and pushed tags; this validates configuration but does not compile or flash firmware.
+Firmware metadata is generated from Git: the deployment script fetches tags, embeds the exact tag when the deployed commit is tagged (otherwise a 12-character commit SHA), and pins all remote packages to the full commit SHA. No manual firmware revision needs to be maintained. The CI workflow resolves and validates the complete modular ESPHome configuration for branch commits and pushed tags; this validates configuration but does not compile or flash firmware.
