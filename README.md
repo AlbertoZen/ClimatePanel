@@ -16,7 +16,7 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 ## Project contents
 
 - `display-1.yaml` — ESPHome display firmware.
-- `custom_components/heating_controller_history/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history, plus its own integration brand icon.
+- `custom_components/climatepanel/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history, plus its own integration brand icon.
 - `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
 - `.github/workflows/validate-esphome.yml` — CI checks for the firmware, integration and deployment script.
 
@@ -40,14 +40,14 @@ The display requests the configuration and current entity states through the ESP
 
 Each room has a configurable icon. The available choices are Home, Living room, Bedroom, Kitchen, Thermostat, Fan, Radiator, Fireplace, Cooling, Office, Server room, Swimming pool, Garage and Air conditioning. The firmware includes these icon assets; changing the selection takes effect without a reflash.
 
-The Home Assistant integration also includes a square brand icon in `custom_components/heating_controller_history/brand/icon.png`.
+The Home Assistant integration also includes a square brand icon in `custom_components/climatepanel/brand/icon.png`.
 
 ## History
 
 The display requests the history action:
 
 ```yaml
-action: heating_controller_history.get_climate_history
+action: climatepanel.get_climate_history
 ```
 
 The integration queries Home Assistant Recorder and returns 288 evenly spaced samples:
@@ -64,14 +64,14 @@ The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, sign
 
 ## Install or update
 
-1. Ensure the integration directory is deployed to `/config/custom_components/heating_controller_history/`.
+1. Ensure the integration directory is deployed to `/config/custom_components/climatepanel/`.
 2. Run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used. Confirm its output reports a tag or 12-character commit SHA.
 3. In the ESPHome Dashboard, compile and install `/config/esphome/display-1.yaml` (the deployed copy, not the Git checkout's source YAML).
 4. Restart Home Assistant when the script reports that the integration has changed.
 5. On the first migration from the old YAML package, add **ClimatePanel** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
 6. In **Settings → Devices & services → ESPHome**, open the display device's Configure dialog and ensure it is allowed to perform Home Assistant actions.
 
-The deployment script retires the former `/config/packages/heating_controller_history.yaml` package and archives it with the existing integration backup. It does not change the top-level packages include in `configuration.yaml`.
+The deployment script retires the former `/config/packages/climatepanel.yaml` package and archives it with the existing integration backup. It does not change the top-level packages include in `configuration.yaml`.
 
 The script validates the ESPHome YAML against the local secrets, backs up the active firmware YAML, deploys the integration and retires the old package. It does not restart Home Assistant, compile firmware or flash the ESP32.
 
