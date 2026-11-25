@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ClimatePanel",
+        "description": "Choose how many rooms to display and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver.",
+        "data": {
+          "room_count": "Number of rooms",
+          "outside_temperature_entity": "Outdoor weather entity / legacy sensor"
+        }
+      },
+      "rooms": {
+        "title": "ClimatePanel rooms",
+        "description": "Select a climate entity, optional humidity sensor and icon for each enabled room.",
+        "data": {
+          "climate_1": "Room 1 climate (Master)",
+          "humidity_1": "Room 1 humidity sensor",
+          "icon_1": "Room 1 icon",
+          "climate_2": "Room 2 climate",
+          "humidity_2": "Room 2 humidity sensor",
+          "icon_2": "Room 2 icon",
+          "climate_3": "Room 3 climate",
+          "humidity_3": "Room 3 humidity sensor",
+          "icon_3": "Room 3 icon",
+          "climate_4": "Room 4 climate",
+          "humidity_4": "Room 4 humidity sensor",
+          "icon_4": "Room 4 icon"
+        }
+      }
+    },
+    "error": {
+      "invalid_count": "Choose between two and four rooms.",
+      "missing_climate": "Select a climate entity for every enabled room.",
+      "duplicate_climates": "Each room must use a different climate entity.",
+      "invalid_icon": "Choose one of the supported room icons."
+    },
+    "abort": {
+      "already_configured": "ClimatePanel is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ClimatePanel rooms",
+        "description": "Choose the number of active rooms and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver. Settings for disabled rooms are retained.",
+        "data": {
+          "room_count": "Number of rooms",
+          "outside_temperature_entity": "Outdoor weather entity / legacy sensor"
+        }
+      },
+      "rooms": {
+        "title": "Configure active rooms",
+        "description": "Only the selected number of rooms is shown. Changes are sent to the display automatically; no firmware edit or ESPHome recompile is required.",
+        "data": {
+          "climate_1": "Room 1 climate (Master)",
+          "humidity_1": "Room 1 humidity sensor",
+          "icon_1": "Room 1 icon",
+          "climate_2": "Room 2 climate",
+          "humidity_2": "Room 2 humidity sensor",
+          "icon_2": "Room 2 icon",
+          "climate_3": "Room 3 climate",
+          "humidity_3": "Room 3 humidity sensor",
+          "icon_3": "Room 3 icon",
+          "climate_4": "Room 4 climate",
+          "humidity_4": "Room 4 humidity sensor",
+          "icon_4": "Room 4 icon"
+        }
+      }
+    },
+    "error": {
+      "invalid_count": "Choose between two and four rooms.",
+      "missing_climate": "Select a climate entity for every enabled room.",
+      "duplicate_climates": "Each room must use a different climate entity.",
+      "invalid_icon": "Choose one of the supported room icons."
+    }
+  }
+}
