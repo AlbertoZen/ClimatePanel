@@ -6,7 +6,8 @@ HA_CONFIG="/config"
 ESPHOME_DIR="$HA_CONFIG/esphome"
 SECRETS="$ESPHOME_DIR/secrets.yaml"
 FIRMWARE_SOURCE="$REPO/display-1.yaml"
-FIRMWARE_TARGET="$ESPHOME_DIR/display-1.yaml"
+FIRMWARE_TARGET="$ESPHOME_DIR/climatepanel-display.yaml"
+LEGACY_FIRMWARE_TARGET="$ESPHOME_DIR/display-1.yaml"
 COMPONENT_SOURCE="$REPO/custom_components/climatepanel"
 COMPONENT_TARGET="$HA_CONFIG/custom_components/climatepanel"
 PACKAGES_DIR="$HA_CONFIG/packages"
@@ -65,7 +66,7 @@ for cmd in git esphome python3 tar diff cmp; do
 done
 
 [[ -d "$REPO/.git" ]] || fail "Git repository not found: $REPO"
-[[ -f "$FIRMWARE_TARGET" ]] || fail "Active thermostat YAML not found: $FIRMWARE_TARGET"
+[[ -f "$FIRMWARE_TARGET" || -f "$LEGACY_FIRMWARE_TARGET" ]] || fail "No existing ClimatePanel firmware YAML found in $ESPHOME_DIR"
 [[ -f "$SECRETS" ]] || fail "Local secrets.yaml not found."
 
 if [[ -n "$(git -C "$REPO" status --porcelain)" ]]; then
@@ -86,6 +87,8 @@ else
   BUILD_IDENTIFIER="$(git -C "$REPO" rev-parse --short=12 HEAD)"
   echo "  Firmware identifier: Git commit $BUILD_IDENTIFIER"
 fi
+FIRMWARE_REF="$(git -C "$REPO" rev-parse HEAD)"
+echo "  Firmware package reference: $FIRMWARE_REF"
 echo "  Prepared firmware config: $FIRMWARE_TARGET"
 
 [[ -f "$FIRMWARE_SOURCE" ]] || fail "Firmware source is missing."
@@ -138,34 +141,45 @@ PY
 
 echo
 echo "4. Validating ESPHome configuration..."
-FIRMWARE_CANDIDATE="$(mktemp "$ESPHOME_DIR/.display-1-candidate.XXXXXX.yaml")"
+FIRMWARE_CANDIDATE="$(mktemp "$ESPHOME_DIR/.climatepanel-display-candidate.XXXXXX.yaml")"
 VALIDATION_LOG="$(mktemp /tmp/thermostat-validation.XXXXXX.log)"
 cp "$FIRMWARE_SOURCE" "$FIRMWARE_CANDIDATE"
-chmod --reference="$FIRMWARE_TARGET" "$FIRMWARE_CANDIDATE"
-python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" <<'PY'
+if [[ -f "$FIRMWARE_TARGET" ]]; then
+  chmod --reference="$FIRMWARE_TARGET" "$FIRMWARE_CANDIDATE"
+elif [[ -f "$LEGACY_FIRMWARE_TARGET" ]]; then
+  chmod --reference="$LEGACY_FIRMWARE_TARGET" "$FIRMWARE_CANDIDATE"
+else
+  chmod 640 "$FIRMWARE_CANDIDATE"
+fi
+python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" "$FIRMWARE_REF" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 firmware_path = Path(sys.argv[1])
-build_identifier = sys.argv[2]
+build_identifier, firmware_ref = sys.argv[2:]
 firmware = firmware_path.read_text()
-placeholder = '  build_identifier: "local"'
-if firmware.count(placeholder) != 1:
-    raise SystemExit("Expected exactly one build_identifier placeholder in display-1.yaml")
-firmware_path.write_text(
-    firmware.replace(placeholder, f"  build_identifier: {json.dumps(build_identifier)}")
-)
+replacements = {
+    '  build_identifier: "local"': f"  build_identifier: {json.dumps(build_identifier)}",
+    '  firmware_ref: "main"': f"  firmware_ref: {json.dumps(firmware_ref)}",
+}
+for placeholder, replacement in replacements.items():
+    if firmware.count(placeholder) != 1:
+        raise SystemExit(f"Expected exactly one placeholder: {placeholder}")
+    firmware = firmware.replace(placeholder, replacement)
+firmware_path.write_text(firmware)
 PY
-python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" <<'PY'
+python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" "$FIRMWARE_REF" <<'PY'
 import sys
 from pathlib import Path
 
 firmware = Path(sys.argv[1]).read_text()
-expected = f'  build_identifier: "{sys.argv[2]}"'
-if expected not in firmware:
-    raise SystemExit("Generated firmware config does not contain the expected Git identifier")
+for key, value in (("build_identifier", sys.argv[2]), ("firmware_ref", sys.argv[3])):
+    expected = f'  {key}: "{value}"'
+    if expected not in firmware:
+        raise SystemExit(f"Generated firmware config does not contain expected {key}: {value}")
 print(f"  Embedded firmware identifier: {sys.argv[2]}")
+print(f"  Pinned package reference: {sys.argv[3]}")
 PY
 if ! esphome config "$FIRMWARE_CANDIDATE" >"$VALIDATION_LOG" 2>&1; then
   echo "ESPHome validation failed. Active firmware has NOT been changed."
@@ -175,9 +189,13 @@ fi
 echo "  ESPHome configuration: OK"
 
 FIRMWARE_CHANGED=false
+LEGACY_FIRMWARE_RETIRE=false
 COMPONENT_CHANGED=false
 PACKAGE_CHANGED=false
-cmp -s "$FIRMWARE_CANDIDATE" "$FIRMWARE_TARGET" || FIRMWARE_CHANGED=true
+if [[ ! -f "$FIRMWARE_TARGET" ]] || ! cmp -s "$FIRMWARE_CANDIDATE" "$FIRMWARE_TARGET"; then
+  FIRMWARE_CHANGED=true
+fi
+[[ ! -f "$LEGACY_FIRMWARE_TARGET" ]] || LEGACY_FIRMWARE_RETIRE=true
 if [[ ! -d "$COMPONENT_TARGET" ]] || ! diff -qr "$COMPONENT_SOURCE" "$COMPONENT_TARGET" >/dev/null 2>&1; then
   COMPONENT_CHANGED=true
 fi
@@ -190,13 +208,14 @@ if [[ "$COMPONENT_CHANGED" == true || "$PACKAGE_CHANGED" == true ]]; then
   BRIDGE_CHANGED=true
 fi
 
-if [[ "$FIRMWARE_CHANGED" == false && "$BRIDGE_CHANGED" == false ]]; then
+if [[ "$FIRMWARE_CHANGED" == false && "$LEGACY_FIRMWARE_RETIRE" == false && "$BRIDGE_CHANGED" == false ]]; then
   echo
   echo "Everything is already up to date. No files changed; no restart required."
   exit 0
 fi
 
-[[ ! -L "$FIRMWARE_TARGET" ]] || fail "Active firmware YAML is a symlink; refusing to replace it."
+[[ ! -L "$FIRMWARE_TARGET" ]] || fail "Generated firmware YAML is a symlink; refusing to replace it."
+[[ ! -L "$LEGACY_FIRMWARE_TARGET" ]] || fail "Legacy firmware YAML is a symlink; refusing to retire it."
 [[ ! -L "$COMPONENT_TARGET" ]] || fail "History integration destination is a symlink; refusing to replace it."
 [[ ! -L "$PACKAGE_TARGET" ]] || fail "History package destination is a symlink; refusing to replace it."
 [[ ! -e "$COMPONENT_TARGET" || -d "$COMPONENT_TARGET" ]] || fail "History integration destination exists but is not a directory."
@@ -212,10 +231,15 @@ fi
 
 echo
 echo "5. Creating backups..."
-if [[ "$FIRMWARE_CHANGED" == true ]]; then
-  FIRMWARE_BACKUP="$ESPHOME_DIR/backups/display-1-$STAMP.yaml"
+if [[ "$FIRMWARE_CHANGED" == true && -f "$FIRMWARE_TARGET" ]]; then
+  FIRMWARE_BACKUP="$ESPHOME_DIR/backups/climatepanel-display-$STAMP.yaml"
   cp -p "$FIRMWARE_TARGET" "$FIRMWARE_BACKUP"
-  echo "  Firmware backup: $FIRMWARE_BACKUP"
+  echo "  Existing generated firmware backup: $FIRMWARE_BACKUP"
+fi
+if [[ "$LEGACY_FIRMWARE_RETIRE" == true ]]; then
+  LEGACY_FIRMWARE_BACKUP="$ESPHOME_DIR/backups/legacy-display-1-$STAMP.yaml"
+  cp -p "$LEGACY_FIRMWARE_TARGET" "$LEGACY_FIRMWARE_BACKUP"
+  echo "  Legacy firmware YAML backup: $LEGACY_FIRMWARE_BACKUP"
 fi
 
 if [[ "$BRIDGE_CHANGED" == true ]]; then
@@ -258,16 +282,25 @@ if [[ "$FIRMWARE_CHANGED" == true ]]; then
   if ! mv -f "$FIRMWARE_CANDIDATE" "$FIRMWARE_TARGET"; then
     echo "Firmware replacement failed; restoring previous history integration."
     restore_bridge
-    fail "Could not replace active firmware YAML."
+    fail "Could not replace generated firmware YAML."
   fi
   FIRMWARE_CANDIDATE=""
 fi
 
+if [[ "$LEGACY_FIRMWARE_RETIRE" == true ]]; then
+  rm -f "$LEGACY_FIRMWARE_TARGET"
+fi
+
 EXPECTED_BUILD_IDENTIFIER_LINE="  build_identifier: \"$BUILD_IDENTIFIER\""
+EXPECTED_FIRMWARE_REF_LINE="  firmware_ref: \"$FIRMWARE_REF\""
 if ! grep -Fqx "$EXPECTED_BUILD_IDENTIFIER_LINE" "$FIRMWARE_TARGET"; then
   fail "Installed firmware YAML does not contain the expected Git identifier: $BUILD_IDENTIFIER"
 fi
+if ! grep -Fqx "$EXPECTED_FIRMWARE_REF_LINE" "$FIRMWARE_TARGET"; then
+  fail "Installed firmware YAML does not contain the expected pinned package reference: $FIRMWARE_REF"
+fi
 echo "  Installed firmware identifier: $BUILD_IDENTIFIER"
+echo "  Pinned package reference: $FIRMWARE_REF"
 echo "  Compile this exact file in ESPHome Dashboard: $FIRMWARE_TARGET"
 
 [[ -n "$COMPONENT_OLD" && -d "$COMPONENT_OLD" ]] && rm -rf "$COMPONENT_OLD"
@@ -299,6 +332,7 @@ echo "======================================"
 echo "       DEPLOYMENT COMPLETED"
 echo "======================================"
 [[ "$FIRMWARE_CHANGED" == true ]] && echo "Firmware YAML: updated (ESPHome validated)" || echo "Firmware YAML: already current"
+[[ "$LEGACY_FIRMWARE_RETIRE" == true ]] && echo "Legacy display-1.yaml: backed up and retired" || echo "Legacy display-1.yaml: not present"
 [[ "$COMPONENT_CHANGED" == true ]] && echo "ClimatePanel integration: updated" || echo "ClimatePanel integration: already current"
 [[ "$PACKAGE_CHANGED" == true ]] && echo "Legacy YAML package: retired" || echo "Legacy YAML package: not present"
 echo
