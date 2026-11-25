@@ -42,7 +42,7 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 | Fonts and rasterised icons | `firmware/packages/assets.yaml` |
 | LVGL common setup, thermostat, clock, utility pages and animations | `firmware/packages/ui/` |
 
-The entry point imports these packages from one exact Git commit. Component lists merge by their ESPHome IDs, so scripts, sensors, LVGL pages and animations retain their cross-package references.
+The entry point imports these packages from the rolling `main` branch and checks for updates every five minutes. Component lists merge by their ESPHome IDs, so scripts, sensors, LVGL pages and animations retain their cross-package references. The package supplies the default diagnostic identifier (`main`); no firmware version substitutions need to be maintained in the local YAML.
 
 Secrets are not stored in this repository. The Home Assistant installation keeps ESPHome credentials in `/config/esphome/secrets.yaml`.
 
@@ -84,7 +84,7 @@ Recorder reads run through Recorder's dedicated database executor. Recorder must
 
 ## Diagnostics
 
-The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script generates `/config/esphome/climatepanel-display.yaml` with that identifier and pins every remote package to the exact same full Git commit. It verifies both values before installing the generated entry point. Compile and install **that exact generated file** in the ESPHome Dashboard. Do not compile the repository's `display-1.yaml` directly: it is a template whose defaults are deliberately `local` and `main`. You can independently confirm the deployed values with `grep -E 'build_identifier|firmware_ref' /config/esphome/climatepanel-display.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. With the simple copy-and-compile entry point, the identifier is `main`, indicating that the firmware packages are loaded from the rolling `main` branch rather than identifying an exact commit. ESPHome checks that branch for package updates every five minutes. The optional deployment script can instead generate a separate configuration pinned to an exact Git tag or commit and display that exact identifier.
 
 ## Home Assistant Marketplace installation
 
@@ -94,7 +94,15 @@ For Home Assistant 2026.11 and newer, the integration can be installed from the 
 
 Select **Integration** as the repository category. After installation, restart Home Assistant. Marketplace installation installs the Home Assistant integration only; it does not compile or flash the ESPHome display firmware. Follow the firmware deployment instructions below for the display.
 
-## Install or update
+## Simple firmware install and update
+
+For the normal manual workflow, copy `display-1.yaml` from this repository into your ESPHome configuration directory. You can name the local file whatever you prefer, for example `house-climate-panel.yaml`.
+
+Keep the package URL, `ref: main` and `refresh: 5min` entries unchanged. Ensure your local `secrets.yaml` contains `wifi_ssid`, `wifi_password` and `display_1__encryption_password`, then compile and install your copied YAML from the ESPHome Dashboard. The firmware packages are downloaded automatically; you do not need to copy the package files or edit firmware version values. To pick up a newer ClimatePanel commit, compile again after ESPHome's five-minute package refresh interval has elapsed.
+
+The diagnostic firmware identifier will read `main`. This is a branch label, not an exact commit identifier.
+
+## Optional automated deployment
 
 1. Ensure the integration directory is deployed to `/config/custom_components/climatepanel/`.
 2. First update the checkout with `git -C /config/climatepanel pull --ff-only origin main`, then run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal. Pulling first is important: an already-running copy of the previous script cannot execute the newer script version that arrives during its own Git pull. Confirm the deployment output reports the firmware identifier and pinned package commit.
