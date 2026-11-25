@@ -77,3 +77,8 @@ jobs:
             ## Installation
 
             Add https://github.com/AlbertoZen/ClimatePanel to the Home Assistant Marketplace as an Integration repository, install ClimatePanel, then restart Home Assistant. Deploy and flash the ESPHome firmware separately using the instructions in the README.
+
+      - name: Validate published repository with HACS
+        uses: hacs/action@main
+        with:
+          category: integration
