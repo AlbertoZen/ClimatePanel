@@ -58,7 +58,10 @@ jobs:
           manifest = json.loads((component / "manifest.json").read_text())
           assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
-          assert manifest["version"] == "2.1.2"
+          assert manifest["version"] == "2.1.3"
+          assert manifest["documentation"] == "https://github.com/AlbertoZen/ClimatePanel#readme"
+          assert manifest["issue_tracker"] == "https://github.com/AlbertoZen/ClimatePanel/issues"
+          assert manifest["codeowners"] == ["@AlbertoZen"]
           assert manifest["config_flow"] is True
 
           services = yaml.safe_load((component / "services.yaml").read_text())
