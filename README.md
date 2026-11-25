@@ -2,7 +2,7 @@
 
 **Smart climate control for Home Assistant**
 
-**Release: 2026.11.09**
+**Release: 2.1.3 (2026-11-25)**
 
 This release includes the thermostat display setpoint-control improvements:
 - Plus/minus and arc adjustments update locally while the user is interacting.
@@ -12,6 +12,9 @@ This release includes the thermostat display setpoint-control improvements:
 
 
 ESPHome firmware and the companion Home Assistant integration for the Guition ESP32-S3-4848S040 thermostat display.
+
+> **Breaking change in 2.1.3:** The Home Assistant integration domain is now `climatepanel` (previously `heating_controller_history`). Existing installations must remove the previous integration and add ClimatePanel as a new integration entry; automatic migration is not provided.
+
 
 ## Project contents
 
