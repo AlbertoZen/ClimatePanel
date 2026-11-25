@@ -1,0 +1,191 @@
+number:
+  - platform: template
+    name: "Display Brightness"
+    id: display_brightness_control
+    min_value: 5
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    icon: "mdi:brightness-6"
+    set_action:
+      then:
+        - if:
+            condition:
+              and:
+                - not: lvgl.is_paused
+                - lambda: 'return !id(display_is_dimmed);'
+            then:
+              - light.turn_on:
+                  id: display_backlight
+                  brightness: !lambda 'return x / 100.0f;'
+  - platform: template
+    name: "Dimmed Display Brightness"
+    id: display_dimmed_brightness_control
+    min_value: 0.1
+    max_value: 10
+    step: 0.1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 0.8
+    icon: "mdi:brightness-5"
+    set_action:
+      then:
+        - if:
+            condition:
+              and:
+                - lambda: 'return id(display_is_dimmed);'
+                - not: lvgl.is_paused
+            then:
+              - light.turn_on:
+                  id: display_backlight
+                  brightness: !lambda 'return x / 100.0f;'
+  - platform: template
+    name: "Display Dim Delay"
+    id: display_dim_delay
+    min_value: 5
+    max_value: 600
+    step: 5
+    unit_of_measurement: "s"
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    icon: "mdi:timer-outline"
+    set_action:
+      then:
+        - if:
+            condition:
+              not: lvgl.is_paused
+            then:
+              - script.execute: display_idle_sequence
+  - platform: template
+    name: "Display Off Delay"
+    id: display_off_delay
+    min_value: 10
+    max_value: 1800
+    step: 10
+    unit_of_measurement: "s"
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 120
+    icon: "mdi:timer-off-outline"
+    set_action:
+      then:
+        - if:
+            condition:
+              not: lvgl.is_paused
+            then:
+              - script.execute: display_idle_sequence
+
+switch:
+  - platform: template
+    name: "Display Dark Mode"
+    id: display_dark_mode
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    icon: "mdi:theme-light-dark"
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Manual";'
+          then:
+            - script.execute: apply_theme
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Manual";'
+          then:
+            - script.execute: apply_theme
+  - platform: template
+    name: "Show Current Temperature Dot"
+    id: show_current_temp_dot
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:circle-small"
+    on_turn_on:
+      - script.execute: update_current_temp_dot
+    on_turn_off:
+      - lambda: |-
+          lv_obj_add_flag(id(current_temp_dot), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_invalidate(id(current_temp_dot));
+  # Momentary Home Assistant trigger: wakes the display like a touch,
+  # then automatically resets so future occupancy events can trigger it again.
+  - platform: template
+    name: "Wake Display"
+    id: display_wake_trigger
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    icon: "mdi:monitor-eye"
+    on_turn_on:
+      - script.execute: display_user_activity
+      - delay: 500ms
+      - switch.turn_off: display_wake_trigger
+
+select:
+  - platform: template
+    name: "Display Theme Source"
+    id: display_theme_source
+    options:
+      - "Manual"
+      - "Sun"
+    optimistic: true
+    restore_value: true
+    initial_option: "Manual"
+    icon: "mdi:theme-light-dark"
+    set_action:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "Sun";'
+            then:
+              - script.execute: apply_sun_theme
+            else:
+              - script.execute: apply_theme
+
+  - platform: template
+    name: "Display Idle Screen"
+    id: display_idle_screen
+    options:
+      - "Off"
+      - "Clock"
+    optimistic: true
+    restore_value: true
+    initial_option: "Off"
+    icon: "mdi:clock-outline"
+    set_action:
+      then:
+        # A template select runs set_action before it publishes the new state.
+        # Use x (the requested option) rather than current_option(), which is stale here.
+        - if:
+            condition:
+              lambda: 'return x == "Clock";'
+            then:
+              - script.execute: show_idle_clock_screen
+            else:
+              - script.execute: apply_idle_screen_off
+
+  - platform: template
+    name: "Display Rotation"
+    id: display_rotation_select
+    options:
+      - "0°"
+      - "90°"
+      - "180°"
+      - "270°"
+    optimistic: true
+    restore_value: true
+    initial_option: "180°"
+    icon: "mdi:screen-rotation"
+    set_action:
+      then:
+        - lvgl.display.set_rotation:
+            rotation: !lambda |-
+              if (x == "0°") return 0;
+              if (x == "90°") return 90;
+              if (x == "270°") return 270;
+              return 180;
