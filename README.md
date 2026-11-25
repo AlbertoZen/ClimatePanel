@@ -88,4 +88,6 @@ The script validates the ESPHome YAML against the local secrets, backs up the ac
 
 ## Development
 
+Releases use the date-based format `YYYY.MM.DD-REV`, for example `2026.11.25-1`. The revision starts at `1` for the first release on a date and increments for each additional release on that same date. The Home Assistant manifest version and GitHub release tag must always match. The release workflow checks both the date and the next revision before publishing.
+
 Firmware metadata is generated from Git: the deployment script fetches tags and embeds the exact tag when the deployed commit is tagged, otherwise a 12-character commit SHA. No manual firmware revision needs to be maintained. The CI workflow validates the ESPHome configuration for branch commits and pushed tags; this validates configuration but does not compile or flash firmware.
