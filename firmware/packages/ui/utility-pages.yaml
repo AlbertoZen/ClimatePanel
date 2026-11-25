@@ -1,0 +1,8 @@
+lvgl:
+  pages:
+    - id: page_info
+      bg_color: 0x111318
+      widgets: []
+    - id: page_history
+      bg_color: 0x111318
+      widgets: []
