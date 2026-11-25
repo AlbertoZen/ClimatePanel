@@ -2,16 +2,10 @@ name: Publish ClimatePanel release
 
 on:
   create:
-  push:
-    branches:
-      - "release/**"
 
 permissions:
   contents: write
 
-concurrency:
-  group: publish-release-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   publish:
@@ -82,3 +76,4 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
+          ignore: topics license
