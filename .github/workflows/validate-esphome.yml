@@ -87,9 +87,10 @@ jobs:
           assert len(package_paths) == 16, [str(path) for path in package_paths]
           package_text = "\n".join(path.read_text() for path in package_paths)
           firmware = entrypoint + "\n" + package_text
-          assert 'ref: ${firmware_ref}' in entrypoint
-          assert 'firmware_ref: "main"' in entrypoint
-          assert 'build_identifier: "local"' in entrypoint
+          assert '    ref: main' in entrypoint
+          assert '    refresh: 5min' in entrypoint
+          assert 'firmware_ref' not in entrypoint
+          assert 'build_identifier: "main"' in package_text
           assert "!secret" not in package_text
           assert "key: ${api_encryption_key}" in package_text
           assert "${wifi_ssid}" in package_text and "${wifi_password}" in package_text
@@ -120,7 +121,7 @@ jobs:
           assert struct.unpack(">II", icon_bytes[16:24]) == (256, 256)
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
-          assert 'build_identifier: "local"' in firmware
+          assert 'build_identifier: "local"' not in firmware
           assert "glyphs: '0123456789.-+/°%•()[]_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '" in firmware
           assert "glyphs: '0123456789.-+/°%•()_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '" in firmware
           assert 'id: lbl_diag_firmware' in firmware
@@ -133,6 +134,8 @@ jobs:
           deploy_script = Path("scripts/deploy-thermostat.sh").read_text()
           assert 'Installed firmware identifier: $BUILD_IDENTIFIER' in deploy_script
           assert 'FIRMWARE_TARGET="$ESPHOME_DIR/climatepanel-display.yaml"' in deploy_script
+          assert "placeholder = '    ref: main'" in deploy_script
+          assert "anchor = '  friendly_name: ClimatePanel'" in deploy_script
           assert 'LEGACY_FIRMWARE_TARGET="$ESPHOME_DIR/display-1.yaml"' in deploy_script
           assert 'Pinned package reference: $FIRMWARE_REF' in deploy_script
           assert 'Compile this exact file in ESPHome Dashboard: $FIRMWARE_TARGET' in deploy_script
@@ -174,4 +177,6 @@ jobs:
           else
             BUILD_IDENTIFIER="${GITHUB_SHA:0:12}"
           fi
-          esphome -s build_identifier "$BUILD_IDENTIFIER" -s firmware_ref "$GITHUB_SHA" config display-1.yaml
+          sed "s/^    ref: main$/    ref: ${GITHUB_SHA}/" display-1.yaml > display-1-ci.yaml
+          trap 'rm -f display-1-ci.yaml' EXIT
+          esphome -s build_identifier "$BUILD_IDENTIFIER" config display-1-ci.yaml
