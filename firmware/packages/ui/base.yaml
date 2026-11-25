@@ -1,0 +1,218 @@
+lvgl:
+  displays:
+    - tft_display
+  touchscreens:
+    - tft_touch
+  rotation: 180
+  bg_color: 0x111318
+  # Keep the 12% buffer in fast internal RAM; this was smoother than the
+  # previous full-screen buffer on this panel.
+  buffer_size: 12%
+  # LVGL v9 performance guidance recommends a 15 ms refresh interval.
+  refresh_interval: 15ms
+  resume_on_input: false
+  on_boot:
+    - lambda: |-
+        // Snapshot image widgets use a valid placeholder source in YAML; detach it
+        // now so later sources are exclusively LVGL-owned snapshot draw buffers.
+        lv_image_set_src(id(img_climate_snapshot_out), static_cast<const void *>(nullptr));
+        lv_image_set_src(id(img_climate_snapshot_in), static_cast<const void *>(nullptr));
+        lv_obj_add_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
+
+        // Host the modal dimmer on LVGL's display-wide top layer rather than
+        // inside the thermostat page hierarchy. This guarantees it covers the
+        // complete physical screen, including the outermost corner pixels.
+        lv_obj_set_parent(id(popup_overlay), lv_layer_top());
+        lv_obj_set_pos(id(popup_overlay), 0, 0);
+        lv_obj_set_size(id(popup_overlay), 480, 480);
+        lv_obj_set_style_radius(id(popup_overlay), 0, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(id(popup_overlay), lv_color_hex(0x000000), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
+        lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_SCROLLABLE);
+
+        // Build a transparent chart directly on the page. Activity shading is
+        // drawn by a sibling background layer created before the chart, so the
+        // grid and temperature lines remain crisp above it.
+        lv_obj_t *activity_background = lv_obj_create(id(history_chart_container));
+        id(history_activity_bg_container) = activity_background;
+        lv_obj_set_size(activity_background, 428, 342);
+        lv_obj_set_pos(activity_background, 36, 6);
+        lv_obj_set_style_bg_opa(activity_background, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(activity_background, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(activity_background, 0, LV_PART_MAIN);
+        lv_obj_set_style_radius(activity_background, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(activity_background, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(activity_background, LV_OBJ_FLAG_CLICKABLE);
+
+        lv_obj_t *chart = lv_chart_create(id(history_chart_container));
+        id(history_chart_obj) = chart;
+        lv_obj_set_size(chart, 428, 342);
+        lv_obj_set_pos(chart, 36, 6);
+        lv_obj_set_style_bg_opa(chart, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(chart, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(chart, 0, LV_PART_MAIN);
+        lv_obj_set_style_line_color(chart, lv_color_hex(0x343A46), LV_PART_MAIN);
+        lv_obj_set_style_line_opa(chart, LV_OPA_30, LV_PART_MAIN);
+        lv_obj_set_style_line_width(chart, 1, LV_PART_MAIN);
+        lv_obj_set_style_line_width(chart, 2, LV_PART_ITEMS);
+        // Draw continuous lines only; suppress the circular marker at every sample.
+        lv_obj_set_style_width(chart, 0, LV_PART_ITEMS);
+        lv_obj_set_style_height(chart, 0, LV_PART_ITEMS);
+        lv_obj_set_style_width(chart, 0, LV_PART_INDICATOR);
+        lv_obj_set_style_height(chart, 0, LV_PART_INDICATOR);
+        lv_obj_set_style_bg_opa(chart, LV_OPA_TRANSP, LV_PART_INDICATOR);
+        lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+        lv_chart_set_point_count(chart, 288);
+        lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, 150, 250);
+        lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
+        lv_chart_set_div_line_count(chart, 5, 5);
+
+        // Single Y axis: room and target temperature in degrees Celsius.
+        static const char *temperature_tick_labels[] = {"15", "17.5", "20", "22.5", "25", nullptr};
+        lv_obj_t *temperature_scale = lv_scale_create(id(history_chart_container));
+        id(history_scale_temperature) = temperature_scale;
+        lv_obj_set_size(temperature_scale, 36, 342);
+        lv_obj_set_pos(temperature_scale, 0, 6);
+        lv_scale_set_mode(temperature_scale, LV_SCALE_MODE_VERTICAL_LEFT);
+        lv_scale_set_range(temperature_scale, 150, 250);
+        lv_scale_set_total_tick_count(temperature_scale, 5);
+        lv_scale_set_major_tick_every(temperature_scale, 1);
+        lv_scale_set_label_show(temperature_scale, true);
+        lv_scale_set_text_src(temperature_scale, temperature_tick_labels);
+
+        // X axis: age of the sample, oldest at left and current at right.
+        // The final Now label is a separate right-aligned label so it cannot clip.
+        static const char *time_tick_labels[] = {"-24h", "-18h", "-12h", "-6h", "", nullptr};
+        lv_obj_t *time_scale = lv_scale_create(id(history_chart_container));
+        id(history_scale_time) = time_scale;
+        lv_obj_set_size(time_scale, 428, 34);
+        lv_obj_set_pos(time_scale, 36, 350);
+        lv_scale_set_mode(time_scale, LV_SCALE_MODE_HORIZONTAL_BOTTOM);
+        lv_scale_set_range(time_scale, 0, 24);
+        lv_scale_set_total_tick_count(time_scale, 5);
+        lv_scale_set_major_tick_every(time_scale, 1);
+        lv_scale_set_label_show(time_scale, true);
+        lv_scale_set_text_src(time_scale, time_tick_labels);
+        lv_obj_set_style_pad_hor(time_scale, lv_chart_get_first_point_center_offset(chart), LV_PART_MAIN);
+
+        // Apply initial theme to the two scales.
+        const bool history_dark = id(display_dark_mode).state;
+        const lv_color_t axis_line_color = lv_color_hex(history_dark ? 0x414855 : 0xC2C8D2);
+        const lv_color_t axis_text_color = lv_color_hex(history_dark ? 0xC4C6D0 : 0x44474F);
+        auto style_scale = [&](lv_obj_t *scale) {
+          lv_obj_set_style_bg_opa(scale, LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_pad_all(scale, 0, LV_PART_MAIN);
+          lv_obj_set_style_line_color(scale, axis_line_color, LV_PART_MAIN);
+          lv_obj_set_style_line_color(scale, axis_line_color, LV_PART_ITEMS);
+          lv_obj_set_style_line_color(scale, axis_line_color, LV_PART_INDICATOR);
+          lv_obj_set_style_text_color(scale, axis_text_color, LV_PART_INDICATOR);
+          lv_obj_set_style_line_opa(scale, history_dark ? LV_OPA_30 : LV_OPA_50, LV_PART_MAIN);
+          lv_obj_set_style_line_opa(scale, history_dark ? LV_OPA_30 : LV_OPA_50, LV_PART_ITEMS);
+          lv_obj_set_style_line_opa(scale, history_dark ? LV_OPA_50 : LV_OPA_60, LV_PART_INDICATOR);
+          lv_obj_set_style_line_width(scale, 1, LV_PART_MAIN);
+          lv_obj_set_style_line_width(scale, 1, LV_PART_ITEMS);
+          lv_obj_set_style_line_width(scale, 1, LV_PART_INDICATOR);
+          lv_obj_set_style_length(scale, 4, LV_PART_ITEMS);
+          lv_obj_set_style_length(scale, 5, LV_PART_INDICATOR);
+        };
+        style_scale(temperature_scale);
+        style_scale(time_scale);
+
+        id(history_temperature_series) = lv_chart_add_series(
+            chart, lv_color_hex(history_dark ? 0xF0F1F5 : 0x171A20), LV_CHART_AXIS_PRIMARY_Y);
+        id(history_target_series) = lv_chart_add_series(
+            chart, lv_color_hex(history_dark ? 0x8BD49A : 0x287A43), LV_CHART_AXIS_PRIMARY_Y);
+        lv_chart_set_all_values(chart, id(history_temperature_series), LV_CHART_POINT_NONE);
+        lv_chart_set_all_values(chart, id(history_target_series), LV_CHART_POINT_NONE);
+        lv_chart_refresh(chart);
+
+        // Full-page loading modal: dim the entire thermostat page and place the
+        // spinner inside a centered panel, rather than over the climate controls.
+        lv_obj_t *climate_overlay = lv_obj_create(id(page_thermostat)->obj);
+        id(climate_loading_overlay) = climate_overlay;
+        lv_obj_set_size(climate_overlay, 480, 480);
+        lv_obj_set_pos(climate_overlay, 0, 0);
+        lv_obj_set_style_radius(climate_overlay, 0, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(climate_overlay, lv_color_hex(0x05070B), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(climate_overlay, LV_OPA_70, LV_PART_MAIN);
+        lv_obj_set_style_border_width(climate_overlay, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(climate_overlay, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(climate_overlay, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(climate_overlay, LV_OBJ_FLAG_CLICKABLE);
+
+        // A compact opaque panel separates the loading animation from the UI.
+        lv_obj_t *climate_panel = lv_obj_create(climate_overlay);
+        lv_obj_set_size(climate_panel, 270, 190);
+        lv_obj_center(climate_panel);
+        lv_obj_set_style_radius(climate_panel, 24, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(climate_panel, lv_color_hex(0x171D29), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(climate_panel, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_color(climate_panel, lv_color_hex(0x34445A), LV_PART_MAIN);
+        lv_obj_set_style_border_width(climate_panel, 1, LV_PART_MAIN);
+        lv_obj_set_style_shadow_color(climate_panel, lv_color_hex(0x000000), LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(climate_panel, 24, LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(climate_panel, LV_OPA_50, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(climate_panel, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(climate_panel, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(climate_panel, LV_OBJ_FLAG_CLICKABLE);
+
+        lv_obj_t *climate_spinner = lv_arc_create(climate_panel);
+        id(climate_loading_spinner) = climate_spinner;
+        lv_obj_set_size(climate_spinner, 88, 88);
+        lv_obj_align(climate_spinner, LV_ALIGN_TOP_MID, 0, 22);
+        lv_arc_set_bg_angles(climate_spinner, 0, 360);
+        lv_arc_set_angles(climate_spinner, 0, 105);
+        lv_arc_set_mode(climate_spinner, LV_ARC_MODE_NORMAL);
+        lv_obj_set_style_arc_width(climate_spinner, 8, LV_PART_MAIN);
+        lv_obj_set_style_arc_width(climate_spinner, 8, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_color(climate_spinner, lv_color_hex(0x46566D), LV_PART_MAIN);
+        lv_obj_set_style_arc_color(climate_spinner, lv_color_hex(0x55B8FF), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_opa(climate_spinner, LV_OPA_TRANSP, LV_PART_KNOB);
+        lv_obj_clear_flag(climate_spinner, LV_OBJ_FLAG_CLICKABLE);
+        // Drive the arc with a periodic LVGL timer. Changing the actual arc angles
+        // avoids the static-looking LVGL rotation animation on this build.
+        lv_timer_t *climate_spin_timer = lv_timer_create([](lv_timer_t *timer) {
+          lv_obj_t *arc = static_cast<lv_obj_t *>(lv_timer_get_user_data(timer));
+          if (arc == nullptr || lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN)) return;
+          static uint16_t phase = 0;
+          phase = (phase + 12) % 360;
+          lv_arc_set_angles(arc, phase, (phase + 105) % 360);
+        }, 35, climate_spinner);
+        (void) climate_spin_timer;
+
+        lv_obj_t *climate_label = lv_label_create(climate_panel);
+        id(climate_loading_label) = climate_label;
+        lv_label_set_text(climate_label, "Connecting to Home Assistant...");
+        lv_obj_set_style_text_color(climate_label, lv_color_hex(0xE3EAF4), LV_PART_MAIN);
+        lv_obj_set_style_text_font(climate_label, id(font_small), LV_PART_MAIN);
+        lv_obj_align(climate_label, LV_ALIGN_BOTTOM_MID, 0, -22);
+
+
+    - lvgl.display.set_rotation:
+        rotation: !lambda |-
+          const auto r = id(display_rotation_select).current_option();
+          if (r == "0°") return 0;
+          if (r == "90°") return 90;
+          if (r == "270°") return 270;
+          return 180;
+    - lvgl.label.update:
+        id: lbl_diag_mac
+        text: !lambda |-
+          const std::string mac = id(diag_mac).state;
+          return mac.empty() ? std::string("--") : mac;
+    - script.execute: refresh_display_data
+    - script.execute: apply_theme
+    - script.execute: render_setpoint
+    - script.execute: update_wifi_icon
+    - script.execute: update_clock_label
+    - script.execute: display_idle_sequence
+  on_pause:
+    - logger.log: "LVGL paused: turning display backlight fully off"
+    - lambda: 'id(display_is_dimmed) = true;'
+    - light.turn_off:
+        id: display_backlight
+        transition_length: 0s
+  on_resume:
+    - logger.log: "LVGL resumed: display is active"
+    - lambda: 'id(display_is_dimmed) = false;'
