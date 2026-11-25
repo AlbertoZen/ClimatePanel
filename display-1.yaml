@@ -6,7 +6,7 @@ substitutions:
   build_identifier: "local"
 esphome:
   name: display-1
-  friendly_name: Heating Controller
+  friendly_name: ClimatePanel
   # LVGL snapshot support is a compile-time LVGL define.
   # ESPHome generates lv_conf.h, so pass this globally to the LVGL component
   # instead of relying on an ESP-IDF sdkconfig option.
@@ -1077,7 +1077,7 @@ script:
     mode: single
     then:
       - homeassistant.action:
-          action: heating_controller_history.get_display_data
+          action: climatepanel.get_display_data
           capture_response: true
           on_success:
             - lambda: |-
@@ -1966,7 +1966,7 @@ script:
           lv_label_set_text(id(lbl_history_loading), "Loading history...");
           lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
       - homeassistant.action:
-          action: heating_controller_history.get_climate_history
+          action: climatepanel.get_climate_history
           data:
             entity_id: !lambda 'return id(active_climate_entity);'
             period_hours: "24"
