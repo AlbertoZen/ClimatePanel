@@ -1,3 +1,7 @@
+substitutions:
+  # Default label for the rolling main-branch package installation.
+  build_identifier: "main"
+
 globals:
   - id: edit_high_setpoint
     type: bool
