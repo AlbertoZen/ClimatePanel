@@ -159,14 +159,20 @@ from pathlib import Path
 firmware_path = Path(sys.argv[1])
 build_identifier, firmware_ref = sys.argv[2:]
 firmware = firmware_path.read_text()
-replacements = {
-    '  build_identifier: "local"': f"  build_identifier: {json.dumps(build_identifier)}",
-    '  firmware_ref: "main"': f"  firmware_ref: {json.dumps(firmware_ref)}",
-}
-for placeholder, replacement in replacements.items():
-    if firmware.count(placeholder) != 1:
-        raise SystemExit(f"Expected exactly one placeholder: {placeholder}")
-    firmware = firmware.replace(placeholder, replacement)
+anchor = '  friendly_name: ClimatePanel'
+if firmware.count(anchor) != 1:
+    raise SystemExit("Expected exactly one friendly_name anchor")
+firmware = firmware.replace(
+    anchor,
+    anchor + f'\\n  build_identifier: {json.dumps(build_identifier)}',
+)
+placeholder = '    ref: main'
+if firmware.count(placeholder) != 1:
+    raise SystemExit(f"Expected exactly one package ref placeholder: {placeholder}")
+firmware = firmware.replace(
+    placeholder,
+    f"    ref: {json.dumps(firmware_ref)}",
+)
 firmware_path.write_text(firmware)
 PY
 python3 - "$FIRMWARE_CANDIDATE" "$BUILD_IDENTIFIER" "$FIRMWARE_REF" <<'PY'
@@ -174,10 +180,12 @@ import sys
 from pathlib import Path
 
 firmware = Path(sys.argv[1]).read_text()
-for key, value in (("build_identifier", sys.argv[2]), ("firmware_ref", sys.argv[3])):
-    expected = f'  {key}: "{value}"'
-    if expected not in firmware:
-        raise SystemExit(f"Generated firmware config does not contain expected {key}: {value}")
+expected_build = f'  build_identifier: "{sys.argv[2]}"'
+expected_ref = f'    ref: "{sys.argv[3]}"'
+if expected_build not in firmware:
+    raise SystemExit(f"Generated firmware config does not contain expected build identifier: {sys.argv[2]}")
+if expected_ref not in firmware:
+    raise SystemExit(f"Generated firmware config does not contain expected pinned package ref: {sys.argv[3]}")
 print(f"  Embedded firmware identifier: {sys.argv[2]}")
 print(f"  Pinned package reference: {sys.argv[3]}")
 PY
@@ -292,7 +300,7 @@ if [[ "$LEGACY_FIRMWARE_RETIRE" == true ]]; then
 fi
 
 EXPECTED_BUILD_IDENTIFIER_LINE="  build_identifier: \"$BUILD_IDENTIFIER\""
-EXPECTED_FIRMWARE_REF_LINE="  firmware_ref: \"$FIRMWARE_REF\""
+EXPECTED_FIRMWARE_REF_LINE="    ref: \"$FIRMWARE_REF\""
 if ! grep -Fqx "$EXPECTED_BUILD_IDENTIFIER_LINE" "$FIRMWARE_TARGET"; then
   fail "Installed firmware YAML does not contain the expected Git identifier: $BUILD_IDENTIFIER"
 fi
