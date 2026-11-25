@@ -108,6 +108,8 @@ jobs:
           assert 'id: lbl_diag_mac' in firmware and 'id: diag_mac' in firmware
           assert 'id: lbl_outside_temperature' not in firmware
           assert 'build_identifier: "local"' in firmware
+          assert "glyphs: '0123456789.-+/°%•()[]_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '" in firmware
+          assert "glyphs: '0123456789.-+/°%•()_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '" in firmware
           assert 'id: lbl_diag_firmware' in firmware
           assert 'text: "${build_identifier}"' in firmware
           assert 'lv_obj_set_style_text_color(id(lbl_diag_firmware_label), primary, LV_PART_MAIN);' in firmware
