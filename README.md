@@ -65,6 +65,14 @@ Recorder reads run through Recorder's dedicated database executor. Recorder must
 
 The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script embeds this value in `/config/esphome/display-1.yaml`. The script prints `Installed firmware identifier: ...` only after verifying that the deployed file contains the Git value. Then compile and install **that exact file** in the ESPHome Dashboard. Do not compile `/config/climatepanel/display-1.yaml` from the Git checkout directly: that source file deliberately retains the `local` placeholder. You can independently confirm the deployed value with `grep build_identifier /config/esphome/display-1.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
 
+## Home Assistant Marketplace installation
+
+For Home Assistant 2026.11 and newer, the integration can be installed from the Marketplace. Add this repository if it is not already listed:
+
+`https://github.com/AlbertoZen/ClimatePanel`
+
+Select **Integration** as the repository category. After installation, restart Home Assistant. Marketplace installation installs the Home Assistant integration only; it does not compile or flash the ESPHome display firmware. Follow the firmware deployment instructions below for the display.
+
 ## Install or update
 
 1. Ensure the integration directory is deployed to `/config/custom_components/climatepanel/`.
