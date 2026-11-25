@@ -2,9 +2,10 @@
 
 **Smart climate control for Home Assistant**
 
-**Release: 2026.11.25-1**
+**Release: 2026.11.25-2**
 
 This release includes the thermostat display setpoint-control improvements:
+- Marketplace metadata now includes the explicit optional string fields expected by Home Assistant 2026.11.
 - Plus/minus and arc adjustments update locally while the user is interacting.
 - Rapid adjustments are debounced; only the final setpoint is sent to Home Assistant.
 - Arc dragging is protected against stale Home Assistant refreshes reverting the selected value.
