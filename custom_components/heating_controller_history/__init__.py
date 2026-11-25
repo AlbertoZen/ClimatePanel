@@ -1,4 +1,4 @@
-"""Heating Controller integration.
+"""ClimatePanel integration.
 
 Provides dynamic climate configuration and Recorder history to the ESPHome
 thermostat display over the encrypted Native API response mechanism.
@@ -110,7 +110,7 @@ def _climate_payload(hass: HomeAssistant, room: dict[str, Any]) -> dict[str, Any
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Heating Controller services for one config entry."""
-    _LOGGER.info("Setting up Heating Controller")
+    _LOGGER.info("Setting up ClimatePanel")
 
     async def async_get_display_data(_call: ServiceCall) -> dict[str, Any]:
         """Return the current configured rooms and live entity states."""
