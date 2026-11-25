@@ -1,0 +1,1228 @@
+lvgl:
+  pages:
+    - id: page_thermostat
+      bg_color: 0x111318
+      widgets:
+        - obj:
+            id: thermostat_content
+            x: 0
+            y: 0
+            width: 480
+            height: 480
+            bg_color: 0x111318
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            widgets:
+              - label:
+                  id: lbl_room_title
+                  align: TOP_LEFT
+                  x: 50
+                  y: 16
+                  width: 260
+                  text: "Master"
+                  text_font: font_medium
+                  text_color: 0xE2E2E9
+
+              - image:
+                  id: img_room_icon_home
+                  src: room_icon_home
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_sofa
+                  src: room_icon_sofa
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_bed
+                  src: room_icon_bed
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_chef_hat
+                  src: room_icon_chef_hat
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_thermostat
+                  src: room_icon_thermostat
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_fan
+                  src: room_icon_fan
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_radiator
+                  src: room_icon_radiator
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_fire
+                  src: room_icon_fire
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_snowflake
+                  src: room_icon_snowflake
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_desk
+                  src: room_icon_desk
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_server
+                  src: room_icon_server
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_pool
+                  src: room_icon_pool
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_garage
+                  src: room_icon_garage
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_room_icon_air_conditioner
+                  src: room_icon_air_conditioner
+                  align: TOP_LEFT
+                  x: 16
+                  y: 15
+                  hidden: true
+                  image_recolor: 0xE2E2E9
+                  image_recolor_opa: COVER
+              # Subtle status tint inside the thermostat dial, behind the arc.
+              - obj:
+                  id: climate_arc_inner_tint
+                  align: CENTER
+                  y: 2
+                  width: 320
+                  height: 320
+                  radius: 160
+                  bg_color: 0xFF8A65
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  clickable: false
+
+              - arc:
+                  id: climate_arc
+                  align: CENTER
+                  y: 2
+                  width: 390
+                  height: 390
+                  pad_all: 12
+                  adv_hittest: true
+                  min_value: 100
+                  max_value: 320
+                  value: 200
+                  start_angle: 135
+                  end_angle: 45
+                  arc_width: 26
+                  arc_color: 0x22242E
+                  arc_rounded: true
+                  indicator:
+                    arc_width: 26
+                    arc_color: 0xFF8A65
+                    arc_rounded: true
+                  knob:
+                    bg_color: 0xFFFFFF
+                    pad_all: 4
+                  # on_change is user-interaction-only. Unlike on_value, it is
+                  # not fired by lvgl.arc.update during display refreshes.
+                  on_change:
+                    - lambda: |-
+                        const int next_tenths = ((int)round(x / 5.0f)) * 5;
+                        if (next_tenths == id(active_target_tenths)) return;
+                        id(setpoint_adjusting) = true;
+                        id(setpoint_arc_user_changed) = true;
+                        id(active_target_tenths) = next_tenths;
+                        // Track the live drag target as well, so a periodic HA
+                        // refresh cannot mistake the previous setpoint for the
+                        // final target and overwrite the arc while it is moving.
+                        id(setpoint_expected_tenths) = next_tenths;
+                        ESP_LOGD("setpoint_diag",
+                                 "Arc user interaction: raw=%d target=%.1f",
+                                 (int)x, next_tenths / 10.0f);
+                    - script.execute: render_setpoint
+                  on_release:
+                    - if:
+                        condition:
+                          lambda: 'return id(setpoint_arc_user_changed);'
+                        then:
+                          - lambda: |-
+                              id(setpoint_arc_user_changed) = false;
+                              id(setpoint_requests_pending) = 1;
+                              id(setpoint_adjusting) = true;
+                              ESP_LOGI("setpoint_diag",
+                                       "Arc released; scheduling final target=%.1f pending=%d",
+                                       id(active_target_tenths) / 10.0f,
+                                       id(setpoint_requests_pending));
+                          - script.execute:
+                              id: debounced_send_setpoint
+                              climate_entity: !lambda 'return id(active_climate_entity);'
+                              target_tenths: !lambda 'return id(active_target_tenths);'
+                              dual_setpoint: !lambda 'return !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));'
+                              edit_high: !lambda 'return id(edit_high_setpoint);'
+                              current_low: !lambda 'return id(active_target_temp_low);'
+                              current_high: !lambda 'return id(active_target_temp_high);'
+                              source: "arc"
+
+              # Current room temperature marker, positioned dynamically along the arc.
+              - obj:
+                  id: current_temp_dot
+                  width: 14
+                  height: 14
+                  radius: 7
+                  bg_color: 0x66BB6A
+                  bg_opa: COVER
+                  border_width: 2
+                  border_color: 0x111318
+                  shadow_width: 0
+                  clickable: false
+                  hidden: true
+
+              - obj:
+                  id: chip_hvac_state
+                  align: CENTER
+                  y: -102
+                  width: 96
+                  height: 30
+                  radius: 15
+                  bg_color: 0x282A34
+                  border_width: 0
+                  pad_all: 0
+                  widgets:
+                    - label:
+                        id: lbl_hvac_state
+                        align: CENTER
+                        text: "Idle"
+                        text_font: font_small
+                        text_color: 0xC4C6D0
+
+              - obj:
+                  id: dual_selector_row
+                  align: CENTER
+                  y: -60
+                  width: 204
+                  height: 34
+                  radius: 17
+                  bg_color: 0x282A34
+                  border_width: 0
+                  pad_all: 2
+                  hidden: true
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: center
+                    flex_align_cross: center
+                    pad_column: 6
+                  widgets:
+                    - button:
+                        id: btn_select_low
+                        width: 94
+                        height: 28
+                        radius: 14
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        checkable: true
+                        state:
+                          checked: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - globals.set:
+                              id: edit_high_setpoint
+                              value: 'false'
+                          - lvgl.widget.update:
+                              id: btn_select_low
+                              state:
+                                checked: true
+                          - lvgl.widget.update:
+                              id: btn_select_high
+                              state:
+                                checked: false
+                          - script.execute: sync_setpoint_ui
+                          - script.execute: apply_theme
+                        widgets:
+                          - label:
+                              id: lbl_dual_low
+                              align: CENTER
+                              text: "H --.-°"
+                              text_font: font_small
+                              text_color: 0xFFB59A
+
+                    - button:
+                        id: btn_select_high
+                        width: 94
+                        height: 28
+                        radius: 14
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        checkable: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - globals.set:
+                              id: edit_high_setpoint
+                              value: 'true'
+                          - lvgl.widget.update:
+                              id: btn_select_low
+                              state:
+                                checked: false
+                          - lvgl.widget.update:
+                              id: btn_select_high
+                              state:
+                                checked: true
+                          - script.execute: sync_setpoint_ui
+                          - script.execute: apply_theme
+                        widgets:
+                          - label:
+                              id: lbl_dual_high
+                              align: CENTER
+                              text: "C --.-°"
+                              text_font: font_small
+                              text_color: 0x8AD5FF
+
+              # Central setpoint: large whole number, compact °C, and lower-right decimal.
+              - label:
+                  id: lbl_target_whole
+                  align: CENTER
+                  x: -18
+                  y: -8
+                  text: "--"
+                  text_font: font_target
+                  text_color: 0xE2E2E9
+
+              - label:
+                  id: lbl_target_unit
+                  align: CENTER
+                  x: 66
+                  y: -30
+                  text: "°C"
+                  text_font: font_target_unit
+                  text_color: 0xE2E2E9
+
+              - label:
+                  id: lbl_target_decimal
+                  align: CENTER
+                  x: 66
+                  y: 56
+                  text: ""
+                  text_font: font_target_decimal
+                  text_color: 0xE2E2E9
+
+              - label:
+                  id: lbl_env_combined
+                  align: CENTER
+                  y: 72
+                  text: "--.-°C  •  --%"
+                  text_font: font_medium
+                  text_color: 0x8E9099
+
+              - button:
+                  id: btn_step_down
+                  align: CENTER
+                  x: -44
+                  y: 137
+                  width: 68
+                  height: 48
+                  radius: 24
+                  bg_color: 0x282A34
+                  border_width: 0
+                  shadow_width: 0
+                  pressed:
+                    bg_color: 0x4A4E60
+                  on_click:
+                    - lambda: |-
+                        id(setpoint_adjusting) = true;
+                        int next_val = id(active_target_tenths) - 5;
+                        if (next_val < 100) next_val = 100;
+                        id(active_target_tenths) = next_val;
+                        id(setpoint_expected_tenths) = next_val;
+                        id(setpoint_requests_pending) = 1;
+                        ESP_LOGI("setpoint_diag",
+                                 "Minus button: local target=%.1f pending=%d",
+                                 next_val / 10.0f, id(setpoint_requests_pending));
+                    - lvgl.arc.update:
+                        id: climate_arc
+                        value: !lambda 'return id(active_target_tenths);'
+                    - script.execute: render_setpoint
+                    - script.execute:
+                        id: debounced_send_setpoint
+                        climate_entity: !lambda 'return id(active_climate_entity);'
+                        target_tenths: !lambda 'return id(active_target_tenths);'
+                        dual_setpoint: !lambda 'return !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));'
+                        edit_high: !lambda 'return id(edit_high_setpoint);'
+                        current_low: !lambda 'return id(active_target_temp_low);'
+                        current_high: !lambda 'return id(active_target_temp_high);'
+                        source: "minus"
+                  widgets:
+                    - label:
+                        id: lbl_step_down
+                        align: CENTER
+                        text: "-"
+                        text_font: font_button_sym
+                        text_color: 0xFFFFFF
+
+              - button:
+                  id: btn_step_up
+                  align: CENTER
+                  x: 44
+                  y: 137
+                  width: 68
+                  height: 48
+                  radius: 24
+                  bg_color: 0x282A34
+                  border_width: 0
+                  shadow_width: 0
+                  pressed:
+                    bg_color: 0x4A4E60
+                  on_click:
+                    - lambda: |-
+                        id(setpoint_adjusting) = true;
+                        int next_val = id(active_target_tenths) + 5;
+                        if (next_val > 320) next_val = 320;
+                        id(active_target_tenths) = next_val;
+                        id(setpoint_requests_pending) = 1;
+                        ESP_LOGI("setpoint_diag",
+                                 "Plus button: local target=%.1f pending=%d",
+                                 next_val / 10.0f, id(setpoint_requests_pending));
+                    - lvgl.arc.update:
+                        id: climate_arc
+                        value: !lambda 'return id(active_target_tenths);'
+                    - script.execute: render_setpoint
+                    - script.execute:
+                        id: debounced_send_setpoint
+                        climate_entity: !lambda 'return id(active_climate_entity);'
+                        target_tenths: !lambda 'return id(active_target_tenths);'
+                        dual_setpoint: !lambda 'return !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));'
+                        edit_high: !lambda 'return id(edit_high_setpoint);'
+                        current_low: !lambda 'return id(active_target_temp_low);'
+                        current_high: !lambda 'return id(active_target_temp_high);'
+                        source: "plus"
+                  widgets:
+                    - label:
+                        id: lbl_step_up
+                        align: CENTER
+                        text: "+"
+                        text_font: font_button_sym
+                        text_color: 0xFFFFFF
+
+              - obj:
+                  id: mode_bar_container
+                  align: BOTTOM_MID
+                  y: -12
+                  width: SIZE_CONTENT
+                  height: 58
+                  radius: 29
+                  bg_color: 0x282A34
+                  border_width: 0
+                  pad_top: 6
+                  pad_bottom: 6
+                  pad_left: 6
+                  pad_right: 6
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: center
+                    flex_align_cross: center
+                    pad_column: 4
+                  widgets:
+                    - button:
+                        id: btn_mode_off
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "off"
+                        widgets:
+                          - image:
+                              src: hvac_icon_off
+                              align: CENTER
+                              image_recolor: 0xE2E2E9
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_heat
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "heat"
+                        widgets:
+                          - image:
+                              src: hvac_icon_heat
+                              align: CENTER
+                              image_recolor: 0xFF8A65
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_cool
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        hidden: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "cool"
+                        widgets:
+                          - image:
+                              src: hvac_icon_cool
+                              align: CENTER
+                              image_recolor: 0x58B9F7
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_heat_cool
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        hidden: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "heat_cool"
+                        widgets:
+                          - image:
+                              src: hvac_icon_heat_cool
+                              align: CENTER
+                              image_recolor: 0xA6F2D1
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_auto
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        hidden: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "auto"
+                        widgets:
+                          - image:
+                              src: hvac_icon_auto
+                              align: CENTER
+                              image_recolor: 0xA6F2D1
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_dry
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        hidden: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "dry"
+                        widgets:
+                          - image:
+                              src: hvac_icon_dry
+                              align: CENTER
+                              image_recolor: 0xEAB2FF
+                              image_recolor_opa: COVER
+
+                    - button:
+                        id: btn_mode_fan_only
+                        width: 44
+                        height: 44
+                        pad_left: 0
+                        pad_right: 0
+                        bg_color: 0x282A34
+                        shadow_width: 0
+                        radius: 22
+                        checkable: true
+                        hidden: true
+                        checked:
+                          bg_color: 0x4A4E60
+                        on_click:
+                          - script.execute:
+                              id: send_hvac_mode
+                              hvac_mode: "fan_only"
+                        widgets:
+                          - image:
+                              src: hvac_icon_fan_only
+                              align: CENTER
+                              image_recolor: 0x89F8EC
+                              image_recolor_opa: COVER
+
+        # Temporary raster layers used only during a climate transition.
+        # They are placed above the live content but below the fixed chevrons and clock.
+        - image:
+            id: img_climate_snapshot_out
+            src: room_icon_home
+            x: 0
+            y: 0
+            width: 480
+            height: 480
+            hidden: true
+            clickable: false
+
+        - image:
+            id: img_climate_snapshot_in
+            src: room_icon_home
+            x: 0
+            y: 0
+            width: 480
+            height: 480
+            hidden: true
+            clickable: false
+
+        - button:
+            id: btn_climate_prev
+            align: BOTTOM_LEFT
+            x: 16
+            y: -12
+            width: 58
+            height: 58
+            radius: 29
+            pad_all: 0
+            bg_color: 0x282A34
+            border_width: 0
+            shadow_width: 0
+            hidden: true
+            on_click:
+              - script.execute: select_previous_climate
+              - script.execute: display_user_activity
+            widgets:
+              - label:
+                  id: lbl_climate_prev
+                  align: CENTER
+                  x: 0
+                  y: -2
+                  text: "‹"
+                  text_font: font_chevron
+                  text_color: 0xE2E2E9
+
+        - button:
+            id: btn_climate_next
+            align: BOTTOM_RIGHT
+            x: -16
+            y: -12
+            width: 58
+            height: 58
+            radius: 29
+            pad_all: 0
+            bg_color: 0x282A34
+            border_width: 0
+            shadow_width: 0
+            hidden: true
+            on_click:
+              - script.execute: select_next_climate
+              - script.execute: display_user_activity
+            widgets:
+              - label:
+                  id: lbl_climate_next
+                  align: CENTER
+                  x: 0
+                  y: -2
+                  text: "›"
+                  text_font: font_chevron
+                  text_color: 0xE2E2E9
+
+        # Top-Right Clock Pill (Tapping it toggles to Page 2)
+        - button:
+            id: top_clock_pill
+            align: TOP_RIGHT
+            # Keep the right edge aligned with the bottom-right climate chevron; trim the left edge.
+            x: -16
+            y: 12
+            width: 179
+            height: 34
+            radius: 17
+            bg_color: 0x282A34
+            border_width: 0
+            shadow_width: 0
+            on_click:
+              - lambda: |-
+                  id(history_page_visible) = false;
+                  lv_obj_add_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
+                  // Diagnostics keeps the normal translucent dimmer.
+                  lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
+                  lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_move_foreground(id(popup_overlay));
+                  // Refresh the full screen and top-layer overlay as one composition.
+                  lv_obj_invalidate(lv_scr_act());
+                  lv_obj_invalidate(id(popup_overlay));
+            widgets:
+              - label:
+                  id: lbl_clock
+                  align: LEFT_MID
+                  x: 1
+                  width: 58
+                  text: "-- ---"
+                  text_font: font_small
+                  text_color: 0xC4C6D0
+              # A real LVGL circle avoids unsupported middle-dot glyphs in the font.
+              - obj:
+                  id: clock_date_separator
+                  align: LEFT_MID
+                  x: 65
+                  width: 4
+                  height: 4
+                  radius: 2
+                  bg_color: 0xC4C6D0
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+              - label:
+                  id: lbl_clock_time
+                  align: LEFT_MID
+                  # Keep the time in place; move the date and separator closer to it.
+                  x: 81
+                  width: 55
+                  text: "--:--"
+                  text_font: font_small
+                  text_color: 0xC4C6D0
+              - image:
+                  id: img_wifi_strength_1
+                  src: wifi_icon_1
+                  align: RIGHT_MID
+                  # Keep the Wi-Fi glyph at its preferred 1 px right inset.
+                  x: -1
+                  hidden: true
+                  image_recolor: 0xC4C6D0
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_wifi_strength_2
+                  src: wifi_icon_2
+                  align: RIGHT_MID
+                  x: -1
+                  hidden: true
+                  image_recolor: 0xC4C6D0
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_wifi_strength_3
+                  src: wifi_icon_3
+                  align: RIGHT_MID
+                  x: -1
+                  hidden: true
+                  image_recolor: 0xC4C6D0
+                  image_recolor_opa: COVER
+              - image:
+                  id: img_wifi_strength_4
+                  src: wifi_icon_4
+                  align: RIGHT_MID
+                  x: -1
+                  hidden: true
+                  image_recolor: 0xC4C6D0
+                  image_recolor_opa: COVER
+
+        # Room-specific history shortcut: same 58 px circular footprint as the chevrons.
+        - button:
+            id: btn_climate_history
+            align: TOP_RIGHT
+            x: -16
+            y: 56
+            width: 58
+            height: 58
+            radius: 29
+            pad_all: 0
+            bg_color: 0x282A34
+            border_width: 0
+            shadow_width: 0
+            on_click:
+              - lambda: |-
+                  id(history_page_visible) = true;
+                  lv_obj_add_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_clear_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
+                  lv_label_set_text(id(lbl_history_loading), "Loading history...");
+                  // Backdrop opacity is already set to 60% by the theme and overlay defaults.
+                  // Leave it unchanged so transparency is present from the first frame.
+                  lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_move_foreground(id(popup_overlay));
+                  // Refresh the full screen and top-layer overlay as one composition.
+                  lv_obj_invalidate(lv_scr_act());
+                  lv_obj_invalidate(id(popup_overlay));
+              - script.execute: refresh_history_chart
+            widgets:
+              - image:
+                  id: img_history_icon
+                  src: history_icon
+                  align: CENTER
+                  image_recolor: 0xC4C6D0
+                  image_recolor_opa: COVER
+
+        # Full-screen dimmer and modal layer. Background taps are blocked and do not dismiss.
+        - obj:
+            id: popup_overlay
+            x: 0
+            y: 0
+            width: 480
+            height: 480
+            bg_color: 0x000000
+            bg_opa: 60%
+            border_width: 0
+            pad_all: 0
+            clickable: true
+            hidden: true
+            widgets:
+              - obj:
+                  id: info_popup
+                  align: CENTER
+                  width: 448
+                  height: 412
+                  radius: 22
+                  bg_color: 0x111318
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x3B3E49
+                  shadow_width: 18
+                  pad_all: 0
+                  clickable: true
+                  hidden: true
+                  widgets:
+                    - label:
+                        id: lbl_info_title
+                        align: TOP_LEFT
+                        x: 28
+                        y: 20
+                        text: "Diagnostics"
+                        text_font: font_medium
+                        text_color: 0xE2E2E9
+
+                    - obj:
+                        id: info_card
+                        align: TOP_MID
+                        y: 70
+                        width: 408
+                        height: 300
+                        radius: 0
+                        scrollable: false
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        widgets:
+                          - obj:
+                              x: 0
+                              y: 0
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_ssid_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "Connected SSID"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_ssid
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 42
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_status_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "Status"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_status
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 84
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_uptime_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "Uptime"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_uptime
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 126
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_ip_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "WiFi IP Address"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_display_ip
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 168
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_wifi_dbm_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "WiFi Signal Strength"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_wifi_dbm
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 210
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_mac_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "MAC Address"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_mac
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "--"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                          - obj:
+                              x: 0
+                              y: 252
+                              width: 408
+                              height: 36
+                              bg_opa: TRANSP
+                              border_width: 0
+                              pad_left: 0
+                              pad_right: 0
+                              pad_top: 0
+                              pad_bottom: 0
+                              widgets:
+                                - label:
+                                    id: lbl_diag_firmware_label
+                                    align: LEFT_MID
+                                    x: 8
+                                    width: 190
+                                    text_align: LEFT
+                                    text: "Firmware"
+                                    text_font: font_small
+                                    text_color: 0x8E9099
+                                - label:
+                                    id: lbl_diag_firmware
+                                    align: RIGHT_MID
+                                    x: 0
+                                    width: 196
+                                    text_align: RIGHT
+                                    text: "${build_identifier}"
+                                    text_font: font_small
+                                    text_color: 0xE2E2E9
+                    - button:
+                        id: btn_info_close
+                        align: TOP_RIGHT
+                        x: -16
+                        y: 12
+                        width: 58
+                        height: 58
+                        radius: 29
+                        pad_all: 0
+                        bg_color: 0x282A34
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          - lambda: |-
+                              id(history_page_visible) = false;
+                              lv_obj_add_flag(id(info_popup), LV_OBJ_FLAG_HIDDEN);
+                              lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+                        widgets:
+                          - image:
+                              id: img_info_close
+                              src: close_icon
+                              align: CENTER
+                              image_recolor: 0xE2E2E9
+                              image_recolor_opa: COVER
+              - obj:
+                  id: history_popup
+                  align: CENTER
+                  width: 472
+                  height: 472
+                  radius: 22
+                  bg_color: 0x111318
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x3B3E49
+                  # The panel nearly fills the overlay; a wide shadow is clipped at screen edges.
+                  shadow_width: 0
+                  pad_all: 0
+                  clickable: true
+                  hidden: true
+                  widgets:
+                    - label:
+                        id: lbl_history_title
+                        align: TOP_LEFT
+                        x: 28
+                        y: 20
+                        text: "Last 24 Hours"
+                        text_font: font_medium
+                        text_color: 0xE2E2E9
+                    - button:
+                        id: btn_history_close
+                        align: TOP_RIGHT
+                        x: -16
+                        y: 12
+                        width: 58
+                        height: 58
+                        radius: 29
+                        pad_all: 0
+                        bg_color: 0x282A34
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          - lambda: |-
+                              id(history_page_visible) = false;
+                              lv_obj_add_flag(id(history_popup), LV_OBJ_FLAG_HIDDEN);
+                              lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+                        widgets:
+                          - image:
+                              id: img_history_close
+                              src: close_icon
+                              align: CENTER
+                              image_recolor: 0xE2E2E9
+                              image_recolor_opa: COVER
+                    - label:
+                        id: lbl_history_axis_temp
+                        align: TOP_LEFT
+                        x: 4
+                        y: 60
+                        width: 36
+                        text_align: RIGHT
+                        text: "[°C]"
+                        text_font: font_small
+                        text_color: 0xC4C6D0
+                    - label:
+                        id: lbl_history_loading
+                        align: CENTER
+                        y: 62
+                        text: "Loading history..."
+                        text_font: font_small
+                        text_color: 0xC4C6D0
+                        hidden: true
+                    - obj:
+                        id: history_chart_container
+                        align: TOP_MID
+                        y: 82
+                        width: 464
+                        height: 388
+                        hidden: true
+                        bg_opa: TRANSP
+                        border_width: 0
+                        radius: 0
+                        pad_all: 0
+                        widgets:
+                          - label:
+                              id: lbl_history_now
+                              align: BOTTOM_RIGHT
+                              x: -8
+                              y: -4
+                              width: 40
+                              height: 34
+                              text: "Now"
+                              text_align: RIGHT
+                              text_font: font_small
+                              text_color: 0xC4C6D0
