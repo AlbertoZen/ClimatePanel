@@ -1,3 +1,11 @@
+esphome:
+  min_version: 2026.9.0
+  build_flags:
+    - "-DLV_USE_SNAPSHOT=1"
+    - "-DLV_USE_CHART=1"
+    - "-DLV_USE_SCALE=1"
+    - "-DLV_USE_LINE=1"
+
 esp32:
   variant: esp32s3
   flash_size: 16MB
