@@ -78,7 +78,7 @@ Select **Integration** as the repository category. After installation, restart H
 ## Install or update
 
 1. Ensure the integration directory is deployed to `/config/custom_components/climatepanel/`.
-2. Run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used. Confirm its output reports a tag or 12-character commit SHA.
+2. First update the checkout with `git -C /config/climatepanel pull --ff-only origin main`, then run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal. Pulling first is important: an already-running copy of the previous script cannot execute the newer script version that arrives during its own Git pull. Confirm the deployment output reports the firmware identifier and pinned package commit.
 3. In the ESPHome Dashboard, compile and install `/config/esphome/climatepanel-display.yaml` (the generated, commit-pinned entry point, not the Git checkout's template).
 4. Restart Home Assistant when the script reports that the integration has changed.
 5. On the first migration from the old YAML package, add **ClimatePanel** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
