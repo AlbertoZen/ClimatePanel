@@ -1,0 +1,89 @@
+sensor:
+  - platform: wifi_signal
+    name: "Display WiFi Signal Strength"
+    id: diag_wifi_signal
+    update_interval: 30s
+    on_value:
+      - lvgl.label.update:
+          id: lbl_diag_wifi_dbm
+          text: !lambda |-
+            float pct = (x <= -100.0f) ? 0.0f : (x >= -50.0f) ? 100.0f : 2.0f * (x + 100.0f);
+            return str_sprintf("%.0f dBm (%.0f%%)", x, pct);
+      - script.execute: update_wifi_icon
+  - platform: template
+    name: "Display WiFi Signal Percentage"
+    id: diag_wifi_percent_sensor
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 30s
+    lambda: |-
+      float rssi = id(diag_wifi_signal).state;
+      if (isnan(rssi)) return {};
+      float pct = (rssi <= -100.0f) ? 0.0f : (rssi >= -50.0f) ? 100.0f : 2.0f * (rssi + 100.0f);
+      return pct;
+
+  - platform: uptime
+    name: "Display Uptime"
+    id: display_uptime
+    update_interval: 30s
+    on_value:
+      - lvgl.label.update:
+          id: lbl_uptime
+          text: !lambda |-
+            uint32_t secs = (uint32_t)x;
+            unsigned int days = (unsigned int)(secs / 86400);
+            unsigned int hours = (unsigned int)((secs % 86400) / 3600);
+            unsigned int mins = (unsigned int)((secs % 3600) / 60);
+            unsigned int s = (unsigned int)(secs % 60);
+            if (days > 0) return str_sprintf("%ud %uh %um", days, hours, mins);
+            if (hours > 0) return str_sprintf("%uh %um", hours, mins);
+            return str_sprintf("%um %us", mins, s);
+
+binary_sensor:
+  - platform: status
+    name: "Device Status"
+    id: diag_device_status
+    on_state:
+      - lvgl.label.update:
+          id: lbl_diag_status
+          text: !lambda 'return x ? std::string("Connected") : std::string("Disconnected");'
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "Display IP Address"
+      id: display_ip_sensor
+      on_value:
+        - lvgl.label.update:
+            id: lbl_display_ip
+            text: !lambda 'return x.empty() ? std::string("Connecting...") : x;'
+
+    ssid:
+      name: "Display Connected SSID"
+      id: diag_ssid
+      on_value:
+        - lvgl.label.update:
+            id: lbl_diag_ssid
+            text: !lambda 'return x.empty() ? std::string("Not connected") : x;'
+    mac_address:
+      name: "Display MAC Address"
+      id: diag_mac
+      on_value:
+        - lvgl.label.update:
+            id: lbl_diag_mac
+            text: !lambda 'return x.empty() ? std::string("--") : x;'
+
+  # HA sun integration state: above_horizon / below_horizon.
+  - platform: homeassistant
+    id: ha_sun_state
+    entity_id: sun.sun
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Sun";'
+          then:
+            - script.execute: apply_sun_theme
+
+# -------------------------------------------------------------------------
+# Room icons available in Home Assistant. Icon choice is stored in the integration
+# and applied to the active room without changing the display layout.
