@@ -20,7 +20,7 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 ## Project contents
 
 - `display-1.yaml` — small ESPHome entry-point template.
-- `firmware/packages/` — modular firmware implementation, split into hardware, networking, runtime, assets and individual LVGL UI packages.
+- `firmware/packages/` — modular firmware split into hardware, networking, device state, controls, sensors, functional script groups, visual assets and individual LVGL UI packages.
 - `custom_components/climatepanel/` — Home Assistant integration. It provides the UI configuration flow, live room data and Recorder history, plus its own integration brand icon.
 - `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
 - `.github/workflows/validate-esphome.yml` — CI validates the merged, commit-pinned firmware configuration, integration and deployment script.
