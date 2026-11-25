@@ -164,7 +164,7 @@ if firmware.count(anchor) != 1:
     raise SystemExit("Expected exactly one friendly_name anchor")
 firmware = firmware.replace(
     anchor,
-    anchor + f'\\n  build_identifier: {json.dumps(build_identifier)}',
+    anchor + f'\n  build_identifier: {json.dumps(build_identifier)}',
 )
 placeholder = '    ref: main'
 if firmware.count(placeholder) != 1:
