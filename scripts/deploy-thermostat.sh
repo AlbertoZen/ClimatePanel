@@ -7,10 +7,10 @@ ESPHOME_DIR="$HA_CONFIG/esphome"
 SECRETS="$ESPHOME_DIR/secrets.yaml"
 FIRMWARE_SOURCE="$REPO/display-1.yaml"
 FIRMWARE_TARGET="$ESPHOME_DIR/display-1.yaml"
-COMPONENT_SOURCE="$REPO/custom_components/heating_controller_history"
-COMPONENT_TARGET="$HA_CONFIG/custom_components/heating_controller_history"
+COMPONENT_SOURCE="$REPO/custom_components/climatepanel"
+COMPONENT_TARGET="$HA_CONFIG/custom_components/climatepanel"
 PACKAGES_DIR="$HA_CONFIG/packages"
-PACKAGE_TARGET="$PACKAGES_DIR/heating_controller_history.yaml"
+PACKAGE_TARGET="$PACKAGES_DIR/climatepanel.yaml"
 STAMP="$(date +%Y%m%d-%H%M%S)-$$"
 
 FIRMWARE_CANDIDATE=""
@@ -113,7 +113,7 @@ for source_file in (component / "__init__.py", component / "config_flow.py"):
     ast.parse(source_file.read_text(), filename=str(source_file))
 
 manifest = json.loads((component / "manifest.json").read_text())
-if manifest.get("domain") != "heating_controller_history":
+if manifest.get("domain") != "climatepanel":
     raise SystemExit("Integration manifest domain does not match its folder")
 if manifest.get("config_flow") is not True:
     raise SystemExit("ClimatePanel must expose a config flow")
@@ -205,7 +205,7 @@ fi
 mkdir -p "$ESPHOME_DIR/backups" "$HA_CONFIG/backups/thermostat-history-bridge" "$HA_CONFIG/custom_components" "$PACKAGES_DIR"
 
 if [[ "$COMPONENT_CHANGED" == true ]]; then
-  COMPONENT_STAGE="$(mktemp -d "$HA_CONFIG/custom_components/.heating_controller_history.stage.XXXXXX")"
+  COMPONENT_STAGE="$(mktemp -d "$HA_CONFIG/custom_components/.climatepanel.stage.XXXXXX")"
   cp -a "$COMPONENT_SOURCE/." "$COMPONENT_STAGE/"
 fi
 
@@ -220,8 +220,8 @@ fi
 
 if [[ "$BRIDGE_CHANGED" == true ]]; then
   BACKUP_ITEMS=()
-  [[ -d "$COMPONENT_TARGET" ]] && BACKUP_ITEMS+=(custom_components/heating_controller_history)
-  [[ -f "$PACKAGE_TARGET" ]] && BACKUP_ITEMS+=(packages/heating_controller_history.yaml)
+  [[ -d "$COMPONENT_TARGET" ]] && BACKUP_ITEMS+=(custom_components/climatepanel)
+  [[ -f "$PACKAGE_TARGET" ]] && BACKUP_ITEMS+=(packages/climatepanel.yaml)
   if (( ${#BACKUP_ITEMS[@]} > 0 )); then
     BRIDGE_BACKUP="$HA_CONFIG/backups/thermostat-history-bridge/history-bridge-$STAMP.tar.gz"
     tar -czf "$BRIDGE_BACKUP" -C "$HA_CONFIG" "${BACKUP_ITEMS[@]}"
@@ -233,7 +233,7 @@ fi
 
 if [[ "$COMPONENT_CHANGED" == true ]]; then
   if [[ -e "$COMPONENT_TARGET" ]]; then
-    COMPONENT_OLD="$HA_CONFIG/custom_components/.heating_controller_history.previous.$STAMP"
+    COMPONENT_OLD="$HA_CONFIG/custom_components/.climatepanel.previous.$STAMP"
     mv "$COMPONENT_TARGET" "$COMPONENT_OLD"
   fi
   if ! mv "$COMPONENT_STAGE" "$COMPONENT_TARGET"; then
@@ -245,7 +245,7 @@ if [[ "$COMPONENT_CHANGED" == true ]]; then
 fi
 
 if [[ "$PACKAGE_CHANGED" == true ]]; then
-  PACKAGE_OLD="$PACKAGES_DIR/.heating_controller_history.yaml.retired.$STAMP"
+  PACKAGE_OLD="$PACKAGES_DIR/.climatepanel.yaml.retired.$STAMP"
   if ! mv "$PACKAGE_TARGET" "$PACKAGE_OLD"; then
     echo "Could not retire the legacy YAML package; restoring previous integration."
     restore_bridge
