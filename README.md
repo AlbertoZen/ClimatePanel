@@ -25,6 +25,25 @@ ESPHome firmware and the companion Home Assistant integration for the Guition ES
 - `scripts/deploy-thermostat.sh` — validates and deploys the firmware and Home Assistant integration.
 - `.github/workflows/validate-esphome.yml` — CI validates the merged, commit-pinned firmware configuration, integration and deployment script.
 
+### Firmware package map
+
+| Area | Package |
+|---|---|
+| ESP32-S3 board, display, touchscreen and backlight | `firmware/packages/hardware.yaml` |
+| Wi-Fi, encrypted API and OTA | `firmware/packages/network.yaml` |
+| Globals, clock and periodic runtime | `firmware/packages/state.yaml` |
+| Display settings, switches and selectors | `firmware/packages/controls.yaml` |
+| Wi-Fi, uptime and Home Assistant sensors | `firmware/packages/sensors.yaml` |
+| Display wake, dimming, clock and environment scripts | `firmware/packages/scripts/display.yaml` |
+| Climate data, navigation and room synchronisation | `firmware/packages/scripts/climate.yaml` |
+| Setpoint and HVAC mode interaction | `firmware/packages/scripts/setpoint.yaml` |
+| Dark/light themes and sun-based theme | `firmware/packages/scripts/theme.yaml` |
+| Recorder history chart data and rendering | `firmware/packages/scripts/history.yaml` |
+| Fonts and rasterised icons | `firmware/packages/assets.yaml` |
+| LVGL common setup, thermostat, clock, utility pages and animations | `firmware/packages/ui/` |
+
+The entry point imports these packages from one exact Git commit. Component lists merge by their ESPHome IDs, so scripts, sensors, LVGL pages and animations retain their cross-package references.
+
 Secrets are not stored in this repository. The Home Assistant installation keeps ESPHome credentials in `/config/esphome/secrets.yaml`.
 
 ## Climate room configuration
