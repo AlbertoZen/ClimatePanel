@@ -1,13 +1,10 @@
 # ClimatePanel ESPHome entry point.
-# The firmware implementation lives in version-pinned packages under firmware/packages/.
-# The deployment script generates /config/esphome/climatepanel-display.yaml with
-# the exact firmware Git reference and diagnostic build identifier.
+# Copy this file into your ESPHome configuration directory and compile it.
+# Firmware packages are fetched from the latest main branch automatically.
 
 substitutions:
   name: display-1
   friendly_name: ClimatePanel
-  build_identifier: "local"
-  firmware_ref: "main"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   api_encryption_key: !secret display_1__encryption_password
@@ -15,7 +12,8 @@ substitutions:
 packages:
   climatepanel:
     url: https://github.com/AlbertoZen/ClimatePanel
-    ref: ${firmware_ref}
+    ref: main
+    refresh: 5min
     files:
       - firmware/packages/hardware.yaml
       - firmware/packages/network.yaml
