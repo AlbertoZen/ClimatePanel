@@ -1,0 +1,219 @@
+font:
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_small
+    size: 16
+    bpp: 4
+    glyphs: '0123456789.-+/°%•()[]_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_medium
+    size: 22
+    bpp: 4
+    glyphs: '0123456789.-+/°%•()_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
+  - file: "gfonts://Google Sans Flex@700"
+    id: font_button_sym
+    size: 28
+    bpp: 4
+    glyphs: '-+‹› '
+  - file: "gfonts://Google Sans Flex@700"
+    id: font_chevron
+    size: 34
+    bpp: 4
+    glyphs: '‹› '
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_target
+    size: 110
+    bpp: 4
+    glyphs: '0123456789'
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_target_unit
+    size: 30
+    bpp: 4
+    glyphs: '°C'
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_target_decimal
+    size: 44
+    bpp: 4
+    glyphs: '.0123456789'
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_clock_time
+    size: 150
+    bpp: 4
+    glyphs: '0123456789:'
+  - file: "gfonts://Google Sans Flex@500"
+    id: font_clock_date
+    size: 24
+    bpp: 4
+    glyphs: '0123456789.-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz, '
+
+# -------------------------------------------------------------------------
+# HOME ASSISTANT & LOCAL SENSORS
+# -------------------------------------------------------------------------
+
+image:
+  # HVAC mode icons (Material Design Icons, rasterised for the TFT).
+  - platform: file
+    file: mdi:power
+    id: hvac_icon_off
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:fire
+    id: hvac_icon_heat
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:snowflake
+    id: hvac_icon_cool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:thermostat-auto
+    id: hvac_icon_heat_cool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:autorenew
+    id: hvac_icon_auto
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:water-percent
+    id: hvac_icon_dry
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:fan
+    id: hvac_icon_fan_only
+    type: RGB565
+    transparency: alpha_channel
+    resize: 24x24
+  - platform: file
+    file: mdi:home
+    id: room_icon_home
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:sofa
+    id: room_icon_sofa
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:bed
+    id: room_icon_bed
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:chef-hat
+    id: room_icon_chef_hat
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:thermostat
+    id: room_icon_thermostat
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:fan
+    id: room_icon_fan
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:radiator
+    id: room_icon_radiator
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:fire
+    id: room_icon_fire
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:snowflake
+    id: room_icon_snowflake
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:desk
+    id: room_icon_desk
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:server
+    id: room_icon_server
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:pool
+    id: room_icon_pool
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:garage
+    id: room_icon_garage
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:air-conditioner
+    id: room_icon_air_conditioner
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:wifi-strength-1
+    id: wifi_icon_1
+    type: RGB565
+    transparency: alpha_channel
+    resize: 18x18
+  - platform: file
+    file: mdi:wifi-strength-2
+    id: wifi_icon_2
+    type: RGB565
+    transparency: alpha_channel
+    resize: 18x18
+  - platform: file
+    file: mdi:wifi-strength-3
+    id: wifi_icon_3
+    type: RGB565
+    transparency: alpha_channel
+    resize: 18x18
+  - platform: file
+    file: mdi:wifi-strength-4
+    id: wifi_icon_4
+    type: RGB565
+    transparency: alpha_channel
+    resize: 18x18
+  - platform: file
+    file: mdi:chart-line
+    id: history_icon
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+  - platform: file
+    file: mdi:close
+    id: close_icon
+    type: RGB565
+    transparency: alpha_channel
+    resize: 26x26
+
+# -------------------------------------------------------------------------
+# SCRIPTS
+# -------------------------------------------------------------------------
