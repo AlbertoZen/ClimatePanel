@@ -1,0 +1,76 @@
+lvgl:
+  pages:
+    - id: page_clock_screen
+      bg_color: 0x111318
+      widgets:
+        # One group is shifted by a few pixels periodically for image-retention mitigation.
+        - obj:
+            id: clock_screen_group
+            align: CENTER
+            width: 440
+            height: 420
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            widgets:
+              - label:
+                  id: lbl_clock_screen_time
+                  align: TOP_MID
+                  x: 0
+                  y: 65
+                  width: 440
+                  text_align: CENTER
+                  text: "--:--"
+                  text_font: font_clock_time
+                  text_color: 0xE2E2E9
+              - label:
+                  id: lbl_clock_screen_date
+                  align: TOP_MID
+                  x: 0
+                  y: 250
+                  width: 440
+                  text_align: CENTER
+                  text: "-- --- ----"
+                  text_font: font_clock_date
+                  text_color: 0xC4C6D0
+              # Environmental readings are plain centred text, not pills/cards.
+              # Keep wide transparent containers so missing readings can be hidden
+              # without disturbing the horizontal centring of the remaining text.
+              - obj:
+                  id: clock_env_pill
+                  align: TOP_MID
+                  y: 335
+                  width: 440
+                  height: 32
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  hidden: true
+                  widgets:
+                    - label:
+                        id: lbl_clock_screen_env
+                        align: CENTER
+                        width: 432
+                        text_align: CENTER
+                        text: ""
+                        text_font: font_medium
+                        text_color: 0xE2E2E9
+              - obj:
+                  id: clock_outside_pill
+                  align: TOP_MID
+                  y: 375
+                  width: 440
+                  height: 28
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  hidden: true
+                  widgets:
+                    - label:
+                        id: lbl_clock_screen_outside
+                        align: CENTER
+                        width: 432
+                        text_align: CENTER
+                        text: ""
+                        text_font: font_medium
+                        text_color: 0xC4C6D0
