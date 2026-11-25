@@ -1,13 +1,16 @@
 {
-  "domain": "climatepanel",
-  "name": "ClimatePanel",
-  "version": "2.1.2",
-  "documentation": "https://www.home-assistant.io/integrations/history/",
+  "codeowners": [
+    "@AlbertoZen"
+  ],
   "config_flow": true,
   "dependencies": [
     "recorder"
   ],
-  "codeowners": [],
+  "domain": "climatepanel",
+  "documentation": "https://github.com/AlbertoZen/ClimatePanel#readme",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/AlbertoZen/ClimatePanel/issues",
+  "name": "ClimatePanel",
   "requirements": [],
-  "iot_class": "local_push"
+  "version": "2.1.3"
 }
