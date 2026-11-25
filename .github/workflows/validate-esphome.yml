@@ -57,7 +57,7 @@ jobs:
           component = Path("custom_components/heating_controller_history")
           manifest = json.loads((component / "manifest.json").read_text())
           assert manifest["domain"] == "heating_controller_history"
-          assert manifest["name"] == "Heating Controller"
+          assert manifest["name"] == "ClimatePanel"
           assert manifest["version"] == "2.1.2"
           assert manifest["config_flow"] is True
 
