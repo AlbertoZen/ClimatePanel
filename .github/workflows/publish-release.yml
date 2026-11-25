@@ -60,7 +60,7 @@ jobs:
             ## Highlights
 
             - Renamed the Home Assistant integration domain to `climatepanel`, including its service/action names and ESPHome firmware references.
-            - Added Home Assistant Marketplace/HACS metadata and completed the integration manifest required fields.
+            - Added Home Assistant Marketplace metadata and completed the integration manifest.
             - Retained configurable two-to-four-room setup, per-room icons, optional outdoor temperature and Recorder-backed climate history.
             - Includes the current thermostat display firmware and its setpoint interaction, screensaver and diagnostics improvements.
 
