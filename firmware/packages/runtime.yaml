@@ -1,0 +1,1948 @@
+globals:
+  - id: edit_high_setpoint
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: active_target_tenths
+    type: int
+    restore_value: no
+    initial_value: '200'
+  - id: setpoint_adjusting
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_arc_user_changed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_requests_pending
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: setpoint_action_done
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_expected_tenths
+    type: int
+    restore_value: no
+    initial_value: '200'
+  - id: ha_client_ip
+    type: std::string
+    restore_value: no
+    initial_value: '"Waiting for HA..."'
+  - id: display_is_dimmed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: display_showing_clock
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # Small periodic offsets on the dim clock page reduce static image retention.
+  - id: clock_screen_shift_step
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: history_page_visible
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: history_sample_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: history_chart_obj
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_scale_temperature
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_activity_bg_container
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_scale_time
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_spinner
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_overlay
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_label
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_temperature_series
+    type: lv_chart_series_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_target_series
+    type: lv_chart_series_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: active_climate_index
+    type: int
+    restore_value: yes
+    initial_value: '0'
+  - id: climate_navigation_busy
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: climate_snapshot_capture_ok
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: active_climate_entity
+    type: std::string
+    restore_value: no
+    initial_value: '"climate.none"'
+  - id: active_climate_name
+    type: std::string
+    restore_value: no
+    initial_value: '"Master"'
+  - id: active_current_temp
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_humidity
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temperature
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temp_low
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temp_high
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_supported_modes
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_hvac_mode
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_hvac_action
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_room_icon
+    type: std::string
+    restore_value: no
+    initial_value: '"home"'
+  # False until the selected room has a valid current temperature and setpoint.
+  - id: climate_data_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: configured_climate_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: master_current_temp_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: master_humidity_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: outside_temperature_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      - script.execute: update_clock_label
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - script.execute: update_clock_label
+          - if:
+              condition:
+                lambda: 'return id(display_showing_clock);'
+              then:
+                - script.execute: shift_clock_screen
+
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_client_ip) != "Waiting for HA...";'
+          then:
+            - script.execute: refresh_display_data
+
+number:
+  - platform: template
+    name: "Display Brightness"
+    id: display_brightness_control
+    min_value: 5
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    icon: "mdi:brightness-6"
+    set_action:
+      then:
+        - if:
+            condition:
+              and:
+                - not: lvgl.is_paused
+                - lambda: 'return !id(display_is_dimmed);'
+            then:
+              - light.turn_on:
+                  id: display_backlight
+                  brightness: !lambda 'return x / 100.0f;'
+  - platform: template
+    name: "Dimmed Display Brightness"
+    id: display_dimmed_brightness_control
+    min_value: 0.1
+    max_value: 10
+    step: 0.1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 0.8
+    icon: "mdi:brightness-5"
+    set_action:
+      then:
+        - if:
+            condition:
+              and:
+                - lambda: 'return id(display_is_dimmed);'
+                - not: lvgl.is_paused
+            then:
+              - light.turn_on:
+                  id: display_backlight
+                  brightness: !lambda 'return x / 100.0f;'
+  - platform: template
+    name: "Display Dim Delay"
+    id: display_dim_delay
+    min_value: 5
+    max_value: 600
+    step: 5
+    unit_of_measurement: "s"
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    icon: "mdi:timer-outline"
+    set_action:
+      then:
+        - if:
+            condition:
+              not: lvgl.is_paused
+            then:
+              - script.execute: display_idle_sequence
+  - platform: template
+    name: "Display Off Delay"
+    id: display_off_delay
+    min_value: 10
+    max_value: 1800
+    step: 10
+    unit_of_measurement: "s"
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 120
+    icon: "mdi:timer-off-outline"
+    set_action:
+      then:
+        - if:
+            condition:
+              not: lvgl.is_paused
+            then:
+              - script.execute: display_idle_sequence
+
+switch:
+  - platform: template
+    name: "Display Dark Mode"
+    id: display_dark_mode
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    icon: "mdi:theme-light-dark"
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Manual";'
+          then:
+            - script.execute: apply_theme
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Manual";'
+          then:
+            - script.execute: apply_theme
+  - platform: template
+    name: "Show Current Temperature Dot"
+    id: show_current_temp_dot
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:circle-small"
+    on_turn_on:
+      - script.execute: update_current_temp_dot
+    on_turn_off:
+      - lambda: |-
+          lv_obj_add_flag(id(current_temp_dot), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_invalidate(id(current_temp_dot));
+  # Momentary Home Assistant trigger: wakes the display like a touch,
+  # then automatically resets so future occupancy events can trigger it again.
+  - platform: template
+    name: "Wake Display"
+    id: display_wake_trigger
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    icon: "mdi:monitor-eye"
+    on_turn_on:
+      - script.execute: display_user_activity
+      - delay: 500ms
+      - switch.turn_off: display_wake_trigger
+
+select:
+  - platform: template
+    name: "Display Theme Source"
+    id: display_theme_source
+    options:
+      - "Manual"
+      - "Sun"
+    optimistic: true
+    restore_value: true
+    initial_option: "Manual"
+    icon: "mdi:theme-light-dark"
+    set_action:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "Sun";'
+            then:
+              - script.execute: apply_sun_theme
+            else:
+              - script.execute: apply_theme
+
+  - platform: template
+    name: "Display Idle Screen"
+    id: display_idle_screen
+    options:
+      - "Off"
+      - "Clock"
+    optimistic: true
+    restore_value: true
+    initial_option: "Off"
+    icon: "mdi:clock-outline"
+    set_action:
+      then:
+        # A template select runs set_action before it publishes the new state.
+        # Use x (the requested option) rather than current_option(), which is stale here.
+        - if:
+            condition:
+              lambda: 'return x == "Clock";'
+            then:
+              - script.execute: show_idle_clock_screen
+            else:
+              - script.execute: apply_idle_screen_off
+
+  - platform: template
+    name: "Display Rotation"
+    id: display_rotation_select
+    options:
+      - "0°"
+      - "90°"
+      - "180°"
+      - "270°"
+    optimistic: true
+    restore_value: true
+    initial_option: "180°"
+    icon: "mdi:screen-rotation"
+    set_action:
+      then:
+        - lvgl.display.set_rotation:
+            rotation: !lambda |-
+              if (x == "0°") return 0;
+              if (x == "90°") return 90;
+              if (x == "270°") return 270;
+              return 180;
+
+sensor:
+  - platform: wifi_signal
+    name: "Display WiFi Signal Strength"
+    id: diag_wifi_signal
+    update_interval: 30s
+    on_value:
+      - lvgl.label.update:
+          id: lbl_diag_wifi_dbm
+          text: !lambda |-
+            float pct = (x <= -100.0f) ? 0.0f : (x >= -50.0f) ? 100.0f : 2.0f * (x + 100.0f);
+            return str_sprintf("%.0f dBm (%.0f%%)", x, pct);
+      - script.execute: update_wifi_icon
+  - platform: template
+    name: "Display WiFi Signal Percentage"
+    id: diag_wifi_percent_sensor
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 30s
+    lambda: |-
+      float rssi = id(diag_wifi_signal).state;
+      if (isnan(rssi)) return {};
+      float pct = (rssi <= -100.0f) ? 0.0f : (rssi >= -50.0f) ? 100.0f : 2.0f * (rssi + 100.0f);
+      return pct;
+
+  - platform: uptime
+    name: "Display Uptime"
+    id: display_uptime
+    update_interval: 30s
+    on_value:
+      - lvgl.label.update:
+          id: lbl_uptime
+          text: !lambda |-
+            uint32_t secs = (uint32_t)x;
+            unsigned int days = (unsigned int)(secs / 86400);
+            unsigned int hours = (unsigned int)((secs % 86400) / 3600);
+            unsigned int mins = (unsigned int)((secs % 3600) / 60);
+            unsigned int s = (unsigned int)(secs % 60);
+            if (days > 0) return str_sprintf("%ud %uh %um", days, hours, mins);
+            if (hours > 0) return str_sprintf("%uh %um", hours, mins);
+            return str_sprintf("%um %us", mins, s);
+
+binary_sensor:
+  - platform: status
+    name: "Device Status"
+    id: diag_device_status
+    on_state:
+      - lvgl.label.update:
+          id: lbl_diag_status
+          text: !lambda 'return x ? std::string("Connected") : std::string("Disconnected");'
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "Display IP Address"
+      id: display_ip_sensor
+      on_value:
+        - lvgl.label.update:
+            id: lbl_display_ip
+            text: !lambda 'return x.empty() ? std::string("Connecting...") : x;'
+
+    ssid:
+      name: "Display Connected SSID"
+      id: diag_ssid
+      on_value:
+        - lvgl.label.update:
+            id: lbl_diag_ssid
+            text: !lambda 'return x.empty() ? std::string("Not connected") : x;'
+    mac_address:
+      name: "Display MAC Address"
+      id: diag_mac
+      on_value:
+        - lvgl.label.update:
+            id: lbl_diag_mac
+            text: !lambda 'return x.empty() ? std::string("--") : x;'
+
+  # HA sun integration state: above_horizon / below_horizon.
+  - platform: homeassistant
+    id: ha_sun_state
+    entity_id: sun.sun
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(display_theme_source).current_option() == "Sun";'
+          then:
+            - script.execute: apply_sun_theme
+
+# -------------------------------------------------------------------------
+# Room icons available in Home Assistant. Icon choice is stored in the integration
+# and applied to the active room without changing the display layout.
+
+script:
+  # Touch activity or the HA Wake Display trigger restores full brightness
+  # and starts a fresh two-stage idle cycle.
+  - id: display_user_activity
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition:
+            lambda: 'return id(display_showing_clock);'
+          then:
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.page.show:
+                id: page_thermostat
+            - script.execute: refresh_display_data
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Activity detected: resuming on climate 1"
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN); id(active_climate_index) = 0;'
+            - lvgl.resume:
+            - lvgl.page.show:
+                id: page_thermostat
+            - script.execute: refresh_display_data
+            - lvgl.widget.redraw:
+      - lambda: 'id(display_is_dimmed) = false;'
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(display_brightness_control).state / 100.0f;'
+      - script.execute: display_idle_sequence
+
+  # Selecting Clock is dispatched from set_action using its requested value (x),
+  # because current_option() still contains the previous value while set_action runs.
+  - id: show_idle_clock_screen
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Idle screen: resuming LVGL for clock"
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lambda: |-
+          id(display_showing_clock) = true;
+          id(history_page_visible) = false;
+          id(display_is_dimmed) = true;
+          lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+          id(clock_screen_shift_step) = 0;
+          lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+      - lvgl.page.show:
+          id: page_clock_screen
+      - lvgl.widget.redraw:
+      - script.execute: update_clock_label
+      - script.execute: update_clock_environment
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+
+  # Selecting Off while the clock is showing pauses LVGL (which turns off
+  # the backlight); if the screen is already active, start its idle sequence.
+  - id: apply_idle_screen_off
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition:
+            lambda: 'return id(display_showing_clock);'
+          then:
+            - lambda: |-
+                id(display_showing_clock) = false;
+                id(history_page_visible) = false;
+                lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+            - lvgl.pause:
+          else:
+            - if:
+                condition:
+                  not: lvgl.is_paused
+                then:
+                  - script.execute: display_idle_sequence
+
+  # First wait for the dim delay, then wait the additional off delay.
+  # The sequence is restarted by touch, HA Wake Display, or delay adjustment.
+  - id: display_idle_sequence
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(display_is_dimmed);'
+          then:
+            - delay: !lambda 'return (uint32_t)(id(display_dim_delay).state * 1000.0f);'
+            - lambda: 'id(display_is_dimmed) = true;'
+            - logger.log: "Display idle: dimming backlight"
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+      - delay: !lambda 'return (uint32_t)(id(display_off_delay).state * 1000.0f);'
+      - if:
+          condition:
+            lambda: 'return id(display_idle_screen).current_option() == "Clock";'
+          then:
+            - logger.log: "Display idle: showing dimmed clock page"
+            - lambda: 'id(display_showing_clock) = true; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.page.show:
+                id: page_clock_screen
+            - lambda: |-
+                id(clock_screen_shift_step) = 0;
+                lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+            - script.execute: update_clock_label
+            - script.execute: update_clock_environment
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+          else:
+            - logger.log: "Display idle: turning backlight off and pausing LVGL"
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.pause:
+
+  - id: update_clock_label
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_clock
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("-- ---");
+            char date_buf[16];
+            now.strftime(date_buf, sizeof(date_buf), "%d %b");
+            return std::string(date_buf);
+      - lvgl.label.update:
+          id: lbl_clock_time
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("--:--");
+            char time_buf[8];
+            now.strftime(time_buf, sizeof(time_buf), "%H:%M");
+            return std::string(time_buf);
+      - lvgl.label.update:
+          id: lbl_clock_screen_time
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("--:--");
+            char time_buf[8];
+            now.strftime(time_buf, sizeof(time_buf), "%H:%M");
+            return std::string(time_buf);
+      - lvgl.label.update:
+          id: lbl_clock_screen_date
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("-- --- ----");
+            char date_buf[32];
+            now.strftime(date_buf, sizeof(date_buf), "%a, %d %b %Y");
+            return std::string(date_buf);
+      - script.execute: update_clock_environment
+
+  # Keep the clock page's indoor and outdoor readings in sync with Home Assistant.
+  # The centred indoor text row mirrors the main thermostat's current temperature/humidity.
+  - id: update_clock_environment
+    mode: restart
+    then:
+      - lambda: |-
+          const bool have_indoor = !isnan(id(master_current_temp_dynamic)) ||
+                                   !isnan(id(master_humidity_dynamic));
+          const bool have_outdoor = !isnan(id(outside_temperature_dynamic));
+          if (have_indoor) lv_obj_clear_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
+          if (have_outdoor) lv_obj_clear_flag(id(clock_outside_pill), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(clock_outside_pill), LV_OBJ_FLAG_HIDDEN);
+      - lvgl.label.update:
+          id: lbl_clock_screen_env
+          text: !lambda |-
+            const float master_temp = id(master_current_temp_dynamic);
+            const float master_humidity = id(master_humidity_dynamic);
+            const bool have_temp = !isnan(master_temp);
+            const bool have_humidity = !isnan(master_humidity);
+            if (have_temp && have_humidity)
+              return str_sprintf("%.1f°C  •  %.0f%%", master_temp, master_humidity);
+            if (have_temp) return str_sprintf("%.1f°C", master_temp);
+            if (have_humidity) return str_sprintf("%.0f%%", master_humidity);
+            return std::string("");
+      - lvgl.label.update:
+          id: lbl_clock_screen_outside
+          text: !lambda |-
+            if (isnan(id(outside_temperature_dynamic))) return std::string("");
+            return str_sprintf("Outside  %.1f°C", id(outside_temperature_dynamic));
+
+  # Move the complete clock group by a few pixels once per minute.
+  # The content remains centred overall but avoids a permanently fixed text footprint.
+  - id: shift_clock_screen
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(display_showing_clock)) return;
+          static const int8_t x_offsets[8] = {0, 2, 3, 1, -2, -3, -1, 0};
+          static const int8_t y_offsets[8] = {0, -2, 1, 3, 2, -1, -3, -2};
+          const int step = id(clock_screen_shift_step) % 8;
+          id(clock_screen_shift_step) = (step + 1) % 8;
+          lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER,
+                       x_offsets[step], y_offsets[step]);
+          lv_obj_invalidate(id(clock_screen_group));
+
+  - id: update_wifi_icon
+    mode: restart
+    then:
+      - lambda: |-
+          const float rssi = id(diag_wifi_signal).state;
+          auto visible = [](lv_obj_t *obj, bool show) {
+            if (show) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+          };
+          const bool valid = !isnan(rssi);
+          int level = 0;
+          if (valid) {
+            if (rssi >= -60.0f) level = 4;
+            else if (rssi >= -70.0f) level = 3;
+            else if (rssi >= -80.0f) level = 2;
+            else level = 1;
+          }
+          visible(id(img_wifi_strength_1), level == 1);
+          visible(id(img_wifi_strength_2), level == 2);
+          visible(id(img_wifi_strength_3), level == 3);
+          visible(id(img_wifi_strength_4), level == 4);
+
+  # Select one climate data set and refresh the same shared thermostat UI.
+  - id: refresh_display_data
+    mode: single
+    then:
+      - homeassistant.action:
+          action: climatepanel.get_display_data
+          capture_response: true
+          on_success:
+            - lambda: |-
+                const JsonObjectConst payload = response["response"].as<JsonObjectConst>();
+                if (payload.isNull()) {
+                  ESP_LOGW("climate_config", "Home Assistant returned an empty display configuration");
+                  return;
+                }
+                const JsonArrayConst rooms = payload["rooms"].as<JsonArrayConst>();
+                const int room_count = payload["room_count"].as<int>();
+                if (room_count < 2 || room_count > 4 || rooms.size() < static_cast<size_t>(room_count)) {
+                  ESP_LOGW("climate_config", "Invalid room configuration received from Home Assistant");
+                  return;
+                }
+
+                id(configured_climate_count) = room_count;
+                if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
+                  id(active_climate_index) = 0;
+                }
+
+                auto read_number = [](JsonObjectConst room, const char *key) -> float {
+                  const JsonVariantConst value = room[key];
+                  return value.isNull() ? NAN : value.as<float>();
+                };
+
+                // The clock screen always follows the Master room, independently
+                // of which room is currently selected on the thermostat.
+                const JsonObjectConst master = rooms[0].as<JsonObjectConst>();
+                id(master_current_temp_dynamic) = read_number(master, "current_temperature");
+                id(master_humidity_dynamic) = read_number(master, "humidity");
+                id(outside_temperature_dynamic) = payload["outside_temperature"].isNull()
+                    ? NAN : payload["outside_temperature"].as<float>();
+
+                const JsonObjectConst room = rooms[id(active_climate_index)].as<JsonObjectConst>();
+                id(active_climate_entity) = room["entity_id"].as<std::string>();
+                id(active_climate_name) = room["name"].as<std::string>();
+                id(active_room_icon) = room["icon"].as<std::string>();
+                if (id(active_room_icon).empty()) id(active_room_icon) = "home";
+                if (id(active_climate_name).empty()) {
+                  id(active_climate_name) = "Room " + std::to_string(id(active_climate_index) + 1);
+                }
+                id(active_current_temp) = read_number(room, "current_temperature");
+                id(active_humidity) = read_number(room, "humidity");
+                ESP_LOGI("setpoint_diag",
+                         "Display data: entity=%s target_temperature=%s (adjusting=%s)",
+                         id(active_climate_entity).c_str(),
+                         room["target_temperature"].isNull()
+                           ? "null" : std::to_string(room["target_temperature"].as<float>()).c_str(),
+                         id(setpoint_adjusting) ? "true" : "false");
+                const float reported_target = read_number(room, "target_temperature");
+                // Keep the optimistic target until HA's live climate state confirms it.
+                if (id(setpoint_adjusting)) {
+                  if (std::isfinite(reported_target) &&
+                      (int)round(reported_target * 10.0f) == id(setpoint_expected_tenths)) {
+                    id(active_target_temperature) = reported_target;
+                    id(active_target_temp_low) = read_number(room, "target_temp_low");
+                    id(active_target_temp_high) = read_number(room, "target_temp_high");
+                    id(setpoint_adjusting) = false;
+                    ESP_LOGI("setpoint_diag", "Home Assistant state confirmed final target: %.1f", reported_target);
+                  } else {
+                    ESP_LOGI("setpoint_diag", "Waiting for climate state: expected=%.1f reported=%s",
+                             id(setpoint_expected_tenths) / 10.0f,
+                             std::isfinite(reported_target) ? std::to_string(reported_target).c_str() : "unavailable");
+                  }
+                } else {
+                  id(active_target_temperature) = reported_target;
+                  id(active_target_temp_low) = read_number(room, "target_temp_low");
+                  id(active_target_temp_high) = read_number(room, "target_temp_high");
+                }
+                id(active_hvac_mode) = room["hvac_mode"].as<std::string>();
+                id(active_hvac_action) = room["hvac_action"].as<std::string>();
+                id(active_supported_modes).clear();
+                const JsonArrayConst modes = room["supported_modes"].as<JsonArrayConst>();
+                for (JsonVariantConst mode : modes) {
+                  const char *mode_name = mode.as<const char *>();
+                  if (mode_name == nullptr) continue;
+                  if (!id(active_supported_modes).empty()) id(active_supported_modes) += ",";
+                  id(active_supported_modes) += std::string("\"") + mode_name + "\"";
+                }
+            - script.execute: sync_active_climate
+            - script.wait: sync_active_climate
+          on_error:
+            - logger.log:
+                level: WARN
+                format: "Could not retrieve climate configuration/data from Home Assistant"
+
+  - id: sync_active_climate
+    mode: restart
+    then:
+      - lambda: |-
+          const int room_count = id(configured_climate_count);
+          if (room_count < 2 || room_count > 4) return;
+          // Keep a restored selection valid if the room count changes in Home Assistant.
+          if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
+            id(active_climate_index) = 0;
+          }
+          // Data readiness controls the placeholder text immediately, but the
+          // loading modal is kept visible until all climate widgets finish updating.
+          id(climate_data_ready) =
+              std::isfinite(id(active_current_temp)) &&
+              (std::isfinite(id(active_target_temperature)) ||
+               (std::isfinite(id(active_target_temp_low)) &&
+                std::isfinite(id(active_target_temp_high))));
+          auto has_mode = [&](const char *mode) {
+            const std::string single = std::string("'") + mode + "'";
+            const std::string double_q = std::string("\"") + mode + "\"";
+            return id(active_supported_modes).find(single) != std::string::npos ||
+                   id(active_supported_modes).find(double_q) != std::string::npos;
+          };
+          auto set_visible = [](lv_obj_t *obj, bool visible) {
+            if (visible) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+          };
+          set_visible(id(btn_mode_off),       has_mode("off"));
+          set_visible(id(btn_mode_heat),      has_mode("heat"));
+          set_visible(id(btn_mode_cool),      has_mode("cool"));
+          set_visible(id(btn_mode_heat_cool), has_mode("heat_cool"));
+          set_visible(id(btn_mode_auto),      has_mode("auto"));
+          set_visible(id(btn_mode_dry),       has_mode("dry"));
+          set_visible(id(btn_mode_fan_only),  has_mode("fan_only"));
+          // Linear navigation follows the configured number of climate slots.
+          set_visible(id(btn_climate_prev), id(active_climate_index) > 0);
+          set_visible(id(btn_climate_next), id(active_climate_index) < room_count - 1);
+          set_visible(id(img_room_icon_home), id(active_room_icon) == "home");
+          set_visible(id(img_room_icon_sofa), id(active_room_icon) == "sofa");
+          set_visible(id(img_room_icon_bed), id(active_room_icon) == "bed");
+          set_visible(id(img_room_icon_chef_hat), id(active_room_icon) == "chef-hat");
+          set_visible(id(img_room_icon_thermostat), id(active_room_icon) == "thermostat");
+          set_visible(id(img_room_icon_fan), id(active_room_icon) == "fan");
+          set_visible(id(img_room_icon_radiator), id(active_room_icon) == "radiator");
+          set_visible(id(img_room_icon_fire), id(active_room_icon) == "fire");
+          set_visible(id(img_room_icon_snowflake), id(active_room_icon) == "snowflake");
+          set_visible(id(img_room_icon_desk), id(active_room_icon) == "desk");
+          set_visible(id(img_room_icon_server), id(active_room_icon) == "server");
+          set_visible(id(img_room_icon_pool), id(active_room_icon) == "pool");
+          set_visible(id(img_room_icon_garage), id(active_room_icon) == "garage");
+          set_visible(id(img_room_icon_air_conditioner), id(active_room_icon) == "air-conditioner");
+      - lvgl.label.update:
+          id: lbl_room_title
+          text: !lambda 'return id(active_climate_name);'
+      - lvgl.label.update:
+          id: lbl_hvac_state
+          text: !lambda |-
+            const std::string action = id(active_hvac_action);
+            if (action == "heating") return std::string("Heating");
+            if (action == "preheating") return std::string("Preheating");
+            if (action == "cooling") return std::string("Cooling");
+            if (action == "idle") return std::string("Idle");
+            if (action == "drying") return std::string("Drying");
+            if (action == "fan") return std::string("Fan");
+            if (action == "defrosting") return std::string("Defrosting");
+            if (action == "off") return std::string("Off");
+            const std::string mode = id(active_hvac_mode);
+            if (mode == "heat") return std::string("Heat mode");
+            if (mode == "cool") return std::string("Cool mode");
+            if (mode == "heat_cool") return std::string("Heat/cool mode");
+            if (mode == "auto") return std::string("Auto mode");
+            if (mode == "dry") return std::string("Dry mode");
+            if (mode == "fan_only") return std::string("Fan mode");
+            return std::string("Off");
+      - lvgl.widget.update:
+          id: btn_mode_off
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "off";'
+      - lvgl.widget.update:
+          id: btn_mode_heat
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "heat";'
+      - lvgl.widget.update:
+          id: btn_mode_cool
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "cool";'
+      - lvgl.widget.update:
+          id: btn_mode_heat_cool
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "heat_cool";'
+      - lvgl.widget.update:
+          id: btn_mode_auto
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "auto";'
+      - lvgl.widget.update:
+          id: btn_mode_dry
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "dry";'
+      - lvgl.widget.update:
+          id: btn_mode_fan_only
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "fan_only";'
+      - script.execute: sync_setpoint_ui
+      - script.wait: sync_setpoint_ui
+      - script.execute: sync_env_label
+      - script.wait: sync_env_label
+      - script.execute: apply_theme
+      - script.wait: apply_theme
+      - script.execute: update_current_temp_dot
+      - script.wait: update_current_temp_dot
+      - lambda: |-
+          // Dismiss the modal only after the room title, modes, setpoint,
+          // temperature/humidity label, theme and current-temperature marker
+          // have all been synchronised.
+          if (id(climate_data_ready)) {
+            if (id(climate_loading_overlay) != nullptr)
+              lv_obj_add_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            if (id(climate_loading_overlay) != nullptr) {
+              lv_obj_clear_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_move_foreground(id(climate_loading_overlay));
+            }
+            if (id(climate_loading_spinner) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_spinner), LV_OBJ_FLAG_HIDDEN);
+            if (id(climate_loading_label) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_label), LV_OBJ_FLAG_HIDDEN);
+          }
+
+  # Snapshot-based navigation: capture the current and next climate views once,
+  # then slide the pre-rendered RGB565 images. The live shared widget tree is
+  # updated only once per navigation and remains hidden during the animation.
+  - id: select_previous_climate
+    mode: single
+    then:
+      - script.execute:
+          id: navigate_climate
+          direction: -1
+
+  - id: select_next_climate
+    mode: single
+    then:
+      - script.execute:
+          id: navigate_climate
+          direction: 1
+
+  - id: cleanup_climate_snapshots
+    mode: single
+    then:
+      - lambda: |-
+          auto release_snapshot = [](lv_obj_t *img) {
+            const void *src = lv_image_get_src(img);
+            // Detach the draw buffer before freeing it, as required by LVGL 9.
+            lv_image_set_src(img, static_cast<const void *>(nullptr));
+            if (src != nullptr) {
+              lv_draw_buf_destroy((lv_draw_buf_t *)src);
+            }
+            lv_obj_set_style_translate_x(img, 0, LV_PART_MAIN);
+            lv_obj_set_pos(img, 0, 0);
+            lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+          };
+          release_snapshot(id(img_climate_snapshot_out));
+          release_snapshot(id(img_climate_snapshot_in));
+          lv_obj_set_style_translate_x(id(thermostat_content), 0, LV_PART_MAIN);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+
+  - id: finish_climate_snapshot_transition
+    mode: single
+    then:
+      - script.execute: cleanup_climate_snapshots
+      - script.wait: cleanup_climate_snapshots
+      - lambda: 'id(climate_navigation_busy) = false;'
+
+  - id: navigate_climate
+    mode: single
+    parameters:
+      direction: int
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const int room_count = id(configured_climate_count);
+              const int next_index = id(active_climate_index) + direction;
+              return !id(climate_navigation_busy) && room_count >= 2 &&
+                     next_index >= 0 && next_index < room_count;
+          then:
+            - lambda: 'id(climate_navigation_busy) = true;'
+            - script.execute: cleanup_climate_snapshots
+            - script.wait: cleanup_climate_snapshots
+            - lambda: |-
+                id(climate_snapshot_capture_ok) = false;
+                lv_obj_update_layout(id(thermostat_content));
+                lv_draw_buf_t *outgoing = lv_snapshot_take(
+                    id(thermostat_content), LV_COLOR_FORMAT_RGB565);
+                if (outgoing != nullptr) {
+                  lv_image_set_src(id(img_climate_snapshot_out), outgoing);
+                  lv_obj_set_pos(id(img_climate_snapshot_out), 0, 0);
+                  lv_obj_set_style_translate_x(id(img_climate_snapshot_out), 0, LV_PART_MAIN);
+                  lv_obj_clear_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                  id(climate_snapshot_capture_ok) = true;
+                } else {
+                  ESP_LOGW("climate_slide", "Outgoing snapshot allocation failed; switching without animation");
+                }
+            - if:
+                condition:
+                  lambda: 'return id(climate_snapshot_capture_ok);'
+                then:
+                  - lambda: 'id(active_climate_index) += direction;'
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
+                  - lambda: |-
+                      // Temporarily reveal the newly-updated shared view for capture.
+                      lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                      lv_obj_update_layout(id(thermostat_content));
+                      lv_draw_buf_t *incoming = lv_snapshot_take(
+                          id(thermostat_content), LV_COLOR_FORMAT_RGB565);
+                      if (incoming != nullptr) {
+                        lv_image_set_src(id(img_climate_snapshot_in), incoming);
+                        // Keep the image's base position at the screen origin.
+                        // The animation's translate_x provides the off-screen start offset.
+                        lv_obj_set_pos(id(img_climate_snapshot_in), 0, 0);
+                        lv_obj_set_style_translate_x(id(img_climate_snapshot_in), 0, LV_PART_MAIN);
+                        lv_obj_clear_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_add_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                        id(climate_snapshot_capture_ok) = true;
+                      } else {
+                        // Leave the live new climate visible; cleanup releases the outgoing image.
+                        id(climate_snapshot_capture_ok) = false;
+                        ESP_LOGW("climate_slide", "Incoming snapshot allocation failed; switching without animation");
+                      }
+                  - if:
+                      condition:
+                        lambda: 'return id(climate_snapshot_capture_ok);'
+                      then:
+                        - if:
+                            condition:
+                              lambda: 'return direction > 0;'
+                            then:
+                              - lvgl.animation.start: climate_snapshot_out_left
+                              - lvgl.animation.start: climate_snapshot_in_from_right
+                            else:
+                              - lvgl.animation.start: climate_snapshot_out_right
+                              - lvgl.animation.start: climate_snapshot_in_from_left
+                      else:
+                        - script.execute: cleanup_climate_snapshots
+                        - script.wait: cleanup_climate_snapshots
+                        - lambda: 'id(climate_navigation_busy) = false;'
+                else:
+                  # No outgoing snapshot available: retain a functional instant switch.
+                  - lambda: 'id(active_climate_index) += direction;'
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
+                  - lambda: 'id(climate_navigation_busy) = false;'
+
+  - id: sync_setpoint_ui
+    mode: restart
+    then:
+      - lambda: |-
+          bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
+          if (dual_valid) {
+            lv_obj_clear_flag(id(dual_selector_row), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(dual_selector_row), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          float active_val = NAN;
+          if (dual_valid) {
+            active_val = id(edit_high_setpoint) ? id(active_target_temp_high) : id(active_target_temp_low);
+          } else if (!isnan(id(active_target_temperature))) {
+            active_val = id(active_target_temperature);
+          }
+
+          // Keep the optimistic local setpoint while an adjustment is pending.
+          // Recorder/config snapshots can lag behind the climate service call.
+          if (!id(setpoint_adjusting) && !isnan(active_val)) {
+            id(active_target_tenths) = ((int)round(active_val * 2.0f)) * 5;
+          }
+
+          if (!isnan(id(active_target_temp_low))) {
+            lv_label_set_text_fmt(id(lbl_dual_low), "H %.1f°", id(active_target_temp_low));
+          }
+          if (!isnan(id(active_target_temp_high))) {
+            lv_label_set_text_fmt(id(lbl_dual_high), "C %.1f°", id(active_target_temp_high));
+          }
+      - lvgl.arc.update:
+          id: climate_arc
+          value: !lambda 'return id(active_target_tenths);'
+      - script.execute: render_setpoint
+      - script.wait: render_setpoint
+
+  - id: render_setpoint
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_target_whole
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("--");
+            return str_sprintf("%d", id(active_target_tenths) / 10);
+      - lvgl.label.update:
+          id: lbl_target_unit
+          text: "°C"
+      - lvgl.label.update:
+          id: lbl_target_decimal
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("");
+            return str_sprintf(".%d", id(active_target_tenths) % 10);
+      - lambda: |-
+          // Anchor both detail labels directly to the main number.
+          // Align-to uses the number's actual LVGL bounds and avoids screen-relative
+          // coordinates that could push either label beyond the 480x480 canvas.
+          lv_obj_t *whole = id(lbl_target_whole);
+          lv_obj_t *unit = id(lbl_target_unit);
+          lv_obj_t *decimal = id(lbl_target_decimal);
+          lv_obj_update_layout(lv_obj_get_parent(whole));
+          lv_obj_update_layout(whole);
+          lv_obj_align_to(unit, whole, LV_ALIGN_OUT_RIGHT_TOP, 2, 17);
+          lv_obj_align_to(decimal, whole, LV_ALIGN_OUT_RIGHT_BOTTOM, -2, -21);
+      - script.execute: update_current_temp_dot
+
+  - id: update_current_temp_dot
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t *arc = id(climate_arc);
+          lv_obj_t *dot = id(current_temp_dot);
+
+          if (!id(show_current_temp_dot).state) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          const float current_temp = id(active_current_temp);
+          if (isnan(current_temp)) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          // Map the current temperature to the arc's configured scale and angles.
+          const float arc_min = (float) lv_arc_get_min_value(arc) / 10.0f;
+          const float arc_max = (float) lv_arc_get_max_value(arc) / 10.0f;
+          if (arc_max <= arc_min) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          float clamped_temp = current_temp;
+          if (clamped_temp < arc_min) clamped_temp = arc_min;
+          if (clamped_temp > arc_max) clamped_temp = arc_max;
+          const float fraction = (clamped_temp - arc_min) / (arc_max - arc_min);
+
+          const float start_angle = (float) lv_arc_get_bg_angle_start(arc);
+          float end_angle = (float) lv_arc_get_bg_angle_end(arc);
+          if (end_angle < start_angle) end_angle += 360.0f;
+          const float angle_deg = start_angle + fraction * (end_angle - start_angle);
+          const float angle_rad = angle_deg * 0.017453292519943295f;
+
+          // Reproduce LVGL's arc centre/radius calculation from the actual
+          // widget dimensions and style padding, so the dot stays on the arc.
+          lv_obj_update_layout(lv_obj_get_parent(arc));
+          const int32_t arc_w = lv_obj_get_width(arc);
+          const int32_t arc_h = lv_obj_get_height(arc);
+          const int32_t pad_l = lv_obj_get_style_pad_left(arc, LV_PART_MAIN);
+          const int32_t pad_r = lv_obj_get_style_pad_right(arc, LV_PART_MAIN);
+          const int32_t pad_t = lv_obj_get_style_pad_top(arc, LV_PART_MAIN);
+          const int32_t pad_b = lv_obj_get_style_pad_bottom(arc, LV_PART_MAIN);
+
+          int32_t content_w = arc_w - pad_l - pad_r;
+          int32_t content_h = arc_h - pad_t - pad_b;
+          int32_t radius = (content_w < content_h ? content_w : content_h) / 2;
+
+          // The indicator may have its own padding; match its actual radius.
+          int32_t ind_pad_l = lv_obj_get_style_pad_left(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_r = lv_obj_get_style_pad_right(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_t = lv_obj_get_style_pad_top(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_b = lv_obj_get_style_pad_bottom(arc, LV_PART_INDICATOR);
+          int32_t ind_pad = ind_pad_l;
+          if (ind_pad_r > ind_pad) ind_pad = ind_pad_r;
+          if (ind_pad_t > ind_pad) ind_pad = ind_pad_t;
+          if (ind_pad_b > ind_pad) ind_pad = ind_pad_b;
+          radius -= ind_pad;
+
+          const float center_x = lv_obj_get_x(arc) + pad_l + content_w / 2.0f;
+          const float center_y = lv_obj_get_y(arc) + pad_t + content_h / 2.0f;
+          const float dot_size = 14.0f;
+          const float dot_x = center_x + radius * cosf(angle_rad) - dot_size / 2.0f;
+          const float dot_y = center_y + radius * sinf(angle_rad) - dot_size / 2.0f;
+          lv_obj_set_pos(dot, (lv_coord_t) lroundf(dot_x), (lv_coord_t) lroundf(dot_y));
+
+          // Match the dot to the arc segment it sits on:
+          // coloured when current temperature is at/below the setpoint,
+          // neutral when it is beyond the setpoint.
+          const bool dark = id(display_dark_mode).state;
+          const bool dual_valid =
+              !isnan(id(active_target_temp_low)) &&
+              !isnan(id(active_target_temp_high));
+          const float setpoint = id(active_target_tenths) / 10.0f;
+          const std::string action = id(active_hvac_action);
+          const std::string mode = id(active_hvac_mode);
+          // HVAC action is authoritative; fall back to the selected mode only
+          // when the integration does not publish an action.
+          const std::string visual_action = action.empty()
+              ? (mode == "heat" ? "heating" :
+                 mode == "cool" ? "cooling" :
+                 mode == "dry" ? "drying" :
+                 mode == "fan_only" ? "fan" : "")
+              : action;
+
+          lv_color_t indicator_color;
+          if (dual_valid) {
+            indicator_color = lv_color_hex(
+                id(edit_high_setpoint)
+                    ? (dark ? 0x58B9F7 : 0x0077A8)
+                    : (dark ? 0xFF8A65 : 0xB54A25));
+          } else if (visual_action == "heating" || visual_action == "preheating") {
+            indicator_color = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
+          } else if (visual_action == "cooling") {
+            indicator_color = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
+          } else if (visual_action == "idle") {
+            indicator_color = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator_color = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          } else {
+            indicator_color = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
+          }
+
+          const lv_color_t track_color =
+              lv_color_hex(dark ? 0x22242E : 0xE1E3EA);
+          const lv_color_t dot_color =
+              (current_temp <= setpoint) ? indicator_color : track_color;
+          const lv_color_t outline_color =
+              lv_color_hex(dark ? 0x111318 : 0xF8F9FF);
+
+          lv_obj_set_style_bg_color(dot, dot_color, LV_PART_MAIN);
+          lv_obj_set_style_border_color(dot, outline_color, LV_PART_MAIN);
+          lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_invalidate(dot);
+
+  - id: apply_theme
+    mode: restart
+    then:
+      - lambda: |-
+          const bool dark = id(display_dark_mode).state;
+          const lv_color_t bg = lv_color_hex(dark ? 0x111318 : 0xF8F9FF);
+          // One common neutral fill for clock, +/- buttons, HVAC buttons and cards.
+          const lv_color_t surface = lv_color_hex(dark ? 0x282A34 : 0xE5E7EF);
+          const lv_color_t selected_surface = lv_color_hex(dark ? 0x4A4E60 : 0xCCD0DA);
+          const lv_color_t primary = lv_color_hex(dark ? 0xE2E2E9 : 0x1A1C20);
+          const lv_color_t secondary = lv_color_hex(dark ? 0xC4C6D0 : 0x44474F);
+          const lv_color_t muted = lv_color_hex(dark ? 0x8E9099 : 0x5F636D);
+
+          // Both pages: LvPageType is a wrapper; style the underlying LVGL screens.
+          lv_obj_set_style_bg_color(id(page_thermostat)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_info)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_clock_screen)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_history)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(lv_scr_act(), bg, LV_PART_MAIN);
+          // An opaque matching background lets the transition use compact RGB565 snapshots.
+          lv_obj_set_style_bg_color(id(thermostat_content), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(thermostat_content), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(info_popup), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(info_popup), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(history_popup), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(history_popup), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(popup_overlay), lv_color_hex(0x000000), LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
+          // These are fixed 480x480 dashboards, not scrollable pages.
+          lv_obj_clear_flag(id(page_thermostat)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_info)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_clock_screen)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_history)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_CLICKABLE);
+          lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(history_popup), LV_OBJ_FLAG_SCROLLABLE);
+
+          // Remove borders from every visible card and control.
+          auto no_border = [](lv_obj_t *obj) {
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+          };
+          no_border(id(top_clock_pill));
+          no_border(id(btn_climate_prev));
+          no_border(id(btn_climate_next));
+          no_border(id(btn_climate_history));
+          no_border(id(chip_hvac_state));
+          no_border(id(dual_selector_row));
+          no_border(id(btn_select_low));
+          no_border(id(btn_select_high));
+          no_border(id(btn_step_down));
+          no_border(id(btn_step_up));
+          no_border(id(mode_bar_container));
+          no_border(id(btn_mode_off));
+          no_border(id(btn_mode_heat));
+          no_border(id(btn_mode_cool));
+          no_border(id(btn_mode_heat_cool));
+          no_border(id(btn_mode_auto));
+          no_border(id(btn_mode_dry));
+          no_border(id(btn_mode_fan_only));
+          no_border(id(info_card));
+          no_border(id(btn_info_close));
+          no_border(id(clock_env_pill));
+          no_border(id(clock_outside_pill));
+          no_border(id(btn_history_close));
+
+          // Identical neutral surfaces keep the interface visually consistent.
+          lv_obj_set_style_bg_color(id(top_clock_pill), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_prev), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_next), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_history), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(mode_bar_container), surface, LV_PART_MAIN);
+          // Diagnostics content sits directly on the page; no enclosing card surface.
+          lv_obj_set_style_bg_opa(id(info_card), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(dual_selector_row), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_step_down), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_step_up), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_info_close), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_history_close), surface, LV_PART_MAIN);
+          // The history plot is drawn directly on the page, without a panel background.
+          lv_obj_set_style_bg_opa(id(history_chart_container), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_scrollbar_mode(id(page_info)->obj, LV_SCROLLBAR_MODE_OFF);
+          lv_obj_set_scrollbar_mode(id(info_card), LV_SCROLLBAR_MODE_OFF);
+          lv_obj_set_style_bg_color(id(btn_select_low), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_select_high), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_off), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_heat), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_cool), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_heat_cool), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_auto), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_dry), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_fan_only), surface, LV_PART_MAIN);
+
+          // A single quiet selected-state fill for all selectable controls.
+          const lv_style_selector_t checked_selector =
+              static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+              static_cast<lv_style_selector_t>(LV_STATE_CHECKED);
+          const lv_style_selector_t pressed_selector =
+              static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+              static_cast<lv_style_selector_t>(LV_STATE_PRESSED);
+          lv_obj_set_style_bg_color(id(btn_select_low), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_select_high), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_off), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_heat), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_cool), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_heat_cool), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_auto), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_dry), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_fan_only), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_step_down), selected_surface, pressed_selector);
+          lv_obj_set_style_bg_color(id(btn_step_up), selected_surface, pressed_selector);
+
+          // Actual HVAC action takes priority. If unavailable, use the selected
+          // mode for colour only; the label still says e.g. "Heat mode".
+          const std::string current_action = id(active_hvac_action);
+          const std::string current_mode = id(active_hvac_mode);
+          const std::string visual_action = current_action.empty()
+              ? (current_mode == "heat" ? "heating" :
+                 current_mode == "cool" ? "cooling" :
+                 current_mode == "dry" ? "drying" :
+                 current_mode == "fan_only" ? "fan" : "")
+              : current_action;
+          lv_color_t chip_bg = surface;
+          lv_color_t chip_text = secondary;
+          if (visual_action == "heating" || visual_action == "preheating") {
+            chip_bg = lv_color_hex(dark ? 0x5C250E : 0xFCE5DB);
+            chip_text = lv_color_hex(dark ? 0xFFB59A : 0x963C15);
+          } else if (visual_action == "cooling") {
+            chip_bg = lv_color_hex(dark ? 0x003549 : 0xD8F1FF);
+            chip_text = lv_color_hex(dark ? 0x8AD5FF : 0x005B81);
+          } else if (visual_action == "idle") {
+            chip_bg = lv_color_hex(dark ? 0x113828 : 0xD8F2E3);
+            chip_text = lv_color_hex(dark ? 0xA6F2D1 : 0x17613F);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            chip_bg = lv_color_hex(dark ? 0x302542 : 0xE9DDF8);
+            chip_text = lv_color_hex(dark ? 0xD4C0F5 : 0x65448E);
+          }
+          lv_obj_set_style_bg_color(id(chip_hvac_state), chip_bg, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_hvac_state), chip_text, LV_PART_MAIN);
+
+          // Text palette.
+          lv_obj_set_style_text_color(id(lbl_room_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_climate_prev), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_climate_next), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_time), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(clock_date_separator), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_date_separator), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_whole), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_unit), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_decimal), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_env_combined), muted, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_step_down), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_step_up), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_dual_low), lv_color_hex(dark ? 0xFFB59A : 0x963C15), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_dual_high), lv_color_hex(dark ? 0x8AD5FF : 0x005B81), LV_PART_MAIN);
+
+          // Diagnostics page: use the same theme-aware foreground for every
+          // heading and value. This keeps all text legible in both themes.
+          lv_obj_set_style_text_color(id(lbl_info_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_time), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_date), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_env), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_outside), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_env_pill), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_outside_pill), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_axis_temp), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_now), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ssid_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_status_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_uptime_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ip_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_mac_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ssid), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_status), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_uptime), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_display_ip), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_mac), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware), primary, LV_PART_MAIN);
+          if (id(climate_loading_overlay) != nullptr) {
+            lv_obj_set_style_bg_color(id(climate_loading_overlay), lv_color_hex(0x080B12), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(id(climate_loading_overlay), LV_OPA_70, LV_PART_MAIN);
+          }
+          if (id(climate_loading_spinner) != nullptr) {
+            lv_obj_set_style_arc_color(id(climate_loading_spinner), lv_color_hex(dark ? 0x536174 : 0xD6DCE5), LV_PART_MAIN);
+            lv_obj_set_style_arc_color(id(climate_loading_spinner), lv_color_hex(dark ? 0x70C7FF : 0x1677C8), LV_PART_INDICATOR);
+          }
+
+          // The chart itself stays transparent so activity bands show through
+          // beneath the temperature lines and grid.
+          if (id(history_chart_obj) != nullptr) {
+            lv_obj_set_style_bg_opa(id(history_chart_obj), LV_OPA_TRANSP, LV_PART_MAIN);
+            // Subtle grid: keep the data curves prominent without a bright lattice.
+            lv_obj_set_style_line_color(id(history_chart_obj),
+                                        lv_color_hex(dark ? 0x343A46 : 0xC9CFD9), LV_PART_MAIN);
+            lv_obj_set_style_line_opa(id(history_chart_obj),
+                                      dark ? LV_OPA_30 : LV_OPA_50, LV_PART_MAIN);
+            lv_obj_set_style_line_width(id(history_chart_obj), 1, LV_PART_MAIN);
+            lv_chart_set_series_color(id(history_chart_obj), id(history_temperature_series),
+                                      lv_color_hex(dark ? 0xF0F1F5 : 0x171A20));
+            lv_chart_set_series_color(id(history_chart_obj), id(history_target_series),
+                                      lv_color_hex(dark ? 0x8BD49A : 0x287A43));
+            lv_chart_refresh(id(history_chart_obj));
+          }
+
+          // Keep the single temperature scale and time scale legible in both themes.
+          const lv_color_t axis_line = lv_color_hex(dark ? 0x414855 : 0xC2C8D2);
+          const lv_color_t axis_text = lv_color_hex(dark ? 0xC4C6D0 : 0x44474F);
+          auto style_history_scale = [&](lv_obj_t *scale) {
+            if (scale == nullptr) return;
+            lv_obj_set_style_bg_opa(scale, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_set_style_pad_all(scale, 0, LV_PART_MAIN);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_MAIN);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_ITEMS);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_INDICATOR);
+            lv_obj_set_style_text_color(scale, axis_text, LV_PART_INDICATOR);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_30 : LV_OPA_50, LV_PART_MAIN);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_30 : LV_OPA_50, LV_PART_ITEMS);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_50 : LV_OPA_60, LV_PART_INDICATOR);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_MAIN);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_ITEMS);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_INDICATOR);
+            lv_obj_set_style_length(scale, 4, LV_PART_ITEMS);
+            lv_obj_set_style_length(scale, 5, LV_PART_INDICATOR);
+          };
+          style_history_scale(id(history_scale_temperature));
+          style_history_scale(id(history_scale_time));
+
+          // Subtle inner-dial tint follows actual action, or selected mode when
+          // the integration does not expose hvac_action.
+          lv_color_t inner_tint = lv_color_hex(dark ? 0xFF8A65 : 0xD85B32);
+          if (visual_action == "cooling") {
+            inner_tint = lv_color_hex(dark ? 0x58B9F7 : 0x1686B8);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            inner_tint = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          }
+          const bool hvac_active = visual_action == "heating" || visual_action == "preheating" ||
+                                   visual_action == "cooling" || visual_action == "fan" ||
+                                   visual_action == "drying";
+          lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
+          // Blend the tint vertically into the actual page background so the
+          // lower edge disappears into the open end of the thermostat arc.
+          // Keep a uniform, subtle tint: the display does not render the desired fade cleanly.
+          lv_obj_set_style_bg_opa(id(climate_arc_inner_tint), hvac_active ? LV_OPA_10 : LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_invalidate(id(climate_arc_inner_tint));
+
+          lv_obj_set_style_arc_color(id(climate_arc), lv_color_hex(dark ? 0x22242E : 0xE1E3EA), LV_PART_MAIN);
+          lv_color_t indicator = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
+          const bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
+          if (dual_valid) {
+            indicator = lv_color_hex(id(edit_high_setpoint) ? (dark ? 0x58B9F7 : 0x0077A8) : (dark ? 0xFF8A65 : 0xB54A25));
+          } else if (visual_action == "cooling") {
+            indicator = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
+          } else if (visual_action == "idle") {
+            indicator = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          } else if (visual_action != "heating" && visual_action != "preheating") {
+            indicator = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
+          }
+          lv_obj_set_style_arc_color(id(climate_arc), indicator, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(climate_arc), lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+      - lvgl.widget.update:
+          id: img_room_icon_home
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_sofa
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_bed
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_chef_hat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_thermostat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fan
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_radiator
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fire
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_snowflake
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_desk
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_server
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_pool
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_garage
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_air_conditioner
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_1
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_2
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_3
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_4
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_history_icon
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_info_close
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_history_close
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      # The clock screensaver always uses its own dark palette. This is applied
+      # after the global theme so Manual/Sun changes only affect the thermostat UI.
+      - lambda: |-
+          const lv_color_t clock_bg = lv_color_hex(0x111318);
+          const lv_color_t clock_primary = lv_color_hex(0xE2E2E9);
+          const lv_color_t clock_secondary = lv_color_hex(0xC4C6D0);
+          lv_obj_set_style_bg_color(id(page_clock_screen)->obj, clock_bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(page_clock_screen)->obj, LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_time), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_date), clock_secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_env), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_outside), clock_secondary, LV_PART_MAIN);
+      - script.execute: update_current_temp_dot
+
+  - id: apply_sun_theme
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_sun_state).state == "below_horizon";'
+          then:
+            - switch.turn_on: display_dark_mode
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ha_sun_state).state == "above_horizon";'
+                then:
+                  - switch.turn_off: display_dark_mode
+      - script.execute: apply_theme
+
+  # History is read directly from Home Assistant Recorder through a small
+  # response-capable custom integration. The chart is populated only on demand.
+  - id: refresh_history_chart
+    mode: restart
+    then:
+      - logger.log:
+          format: "Requesting last 24 hours of history for %s"
+          args: [ 'id(active_climate_entity).c_str()' ]
+      - lambda: |-
+          // Never expose the previous climate's graph while a new request is pending.
+          if (id(history_chart_obj) != nullptr) {
+            lv_chart_set_all_values(id(history_chart_obj), id(history_temperature_series), LV_CHART_POINT_NONE);
+            lv_chart_set_all_values(id(history_chart_obj), id(history_target_series), LV_CHART_POINT_NONE);
+            lv_chart_refresh(id(history_chart_obj));
+          }
+          if (id(history_activity_bg_container) != nullptr) lv_obj_clean(id(history_activity_bg_container));
+          lv_obj_add_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
+          lv_label_set_text(id(lbl_history_loading), "Loading history...");
+          lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+      - homeassistant.action:
+          action: climatepanel.get_climate_history
+          data:
+            entity_id: !lambda 'return id(active_climate_entity);'
+            period_hours: "24"
+          capture_response: true
+          on_success:
+            - lambda: |-
+                lv_obj_t *chart = id(history_chart_obj);
+                if (chart == nullptr) return;
+
+                JsonObjectConst payload = response["response"].as<JsonObjectConst>();
+                if (payload.isNull()) {
+                  ESP_LOGW("history", "Recorder returned no history data for %s", id(active_climate_entity).c_str());
+                  lv_label_set_text(id(lbl_history_loading), "No history data available");
+                  lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+                  return;
+                }
+
+                JsonArrayConst temperatures = payload["temperatures"].as<JsonArrayConst>();
+                JsonArrayConst targets = payload["targets"].as<JsonArrayConst>();
+                JsonArrayConst activities = payload["activities"].as<JsonArrayConst>();
+                if (temperatures.isNull() || targets.isNull() || activities.isNull()) {
+                  ESP_LOGW("history", "Recorder response was incomplete for %s", id(active_climate_entity).c_str());
+                  lv_label_set_text(id(lbl_history_loading), "History response incomplete");
+                  lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+                  return;
+                }
+
+                const size_t max_points = 288U;
+                size_t count = temperatures.size();
+                if (count > targets.size()) count = targets.size();
+                if (count > activities.size()) count = activities.size();
+                if (count > max_points) count = max_points;
+
+                // First pass: find the actual temperature envelope from both room
+                // and target readings. The graph then uses a tight, rounded range
+                // instead of wasting most of its height on a fixed 0-40 C scale.
+                float data_min = 0.0f;
+                float data_max = 0.0f;
+                bool have_history_range = false;
+                size_t valid_temperature_points = 0;
+                for (size_t point = 0; point < count; point++) {
+                  const float room_temp = temperatures[point].as<float>();
+                  const float target_temp = targets[point].as<float>();
+                  if (std::isfinite(room_temp) && room_temp > -50.0f) {
+                    if (!have_history_range) {
+                      data_min = data_max = room_temp;
+                      have_history_range = true;
+                    } else {
+                      if (room_temp < data_min) data_min = room_temp;
+                      if (room_temp > data_max) data_max = room_temp;
+                    }
+                    valid_temperature_points++;
+                  }
+                  if (std::isfinite(target_temp) && target_temp > -50.0f) {
+                    if (!have_history_range) {
+                      data_min = data_max = target_temp;
+                      have_history_range = true;
+                    } else {
+                      if (target_temp < data_min) data_min = target_temp;
+                      if (target_temp > data_max) data_max = target_temp;
+                    }
+                  }
+                }
+
+                // Use a compact automatic envelope. Eight percent padding (with a
+                // 0.5 C minimum) prevents the curves touching the chart edge without
+                // wasting a large part of the plot on empty temperature range.
+                int axis_min_tenths = 150;
+                int axis_max_tenths = 250;
+                int axis_step_tenths = 25;
+                if (have_history_range) {
+                  const float data_span = fmaxf(0.0f, data_max - data_min);
+                  const float padding = fmaxf(0.5f, data_span * 0.08f);
+                  const float padded_min = data_min - padding;
+                  const float padded_max = data_max + padding;
+                  const float raw_step_tenths = ((padded_max - padded_min) * 10.0f) / 4.0f;
+                  axis_step_tenths = (raw_step_tenths <= 5.0f) ? 5 :
+                                     (raw_step_tenths <= 10.0f) ? 10 :
+                                     (raw_step_tenths <= 20.0f) ? 20 :
+                                     (raw_step_tenths <= 25.0f) ? 25 :
+                                     (raw_step_tenths <= 50.0f) ? 50 :
+                                     (raw_step_tenths <= 100.0f) ? 100 :
+                                     (raw_step_tenths <= 200.0f) ? 200 :
+                                     (raw_step_tenths <= 250.0f) ? 250 :
+                                     (raw_step_tenths <= 500.0f) ? 500 :
+                                     (raw_step_tenths <= 1000.0f) ? 1000 :
+                                     (int)ceilf(raw_step_tenths / 1000.0f) * 1000;
+                  axis_min_tenths = (int)floorf((padded_min * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  axis_max_tenths = (int)ceilf((padded_max * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  if (axis_max_tenths <= axis_min_tenths)
+                    axis_max_tenths = axis_min_tenths + axis_step_tenths * 4;
+                }
+
+                // Keep the tick labels in static storage because LVGL retains
+                // the text-source pointer after this callback returns.
+                static char temperature_label_storage[16][8];
+                static const char *temperature_tick_labels[17];
+                const int temperature_tick_count =
+                    ((axis_max_tenths - axis_min_tenths) / axis_step_tenths) + 1;
+                for (int tick = 0; tick < temperature_tick_count && tick < 16; tick++) {
+                  const float tick_c =
+                      (axis_min_tenths + tick * axis_step_tenths) / 10.0f;
+                  if (fabsf(tick_c - roundf(tick_c)) < 0.05f) {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%d", (int)lroundf(tick_c));
+                  } else {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%.1f", tick_c);
+                  }
+                  temperature_tick_labels[tick] = temperature_label_storage[tick];
+                }
+                temperature_tick_labels[temperature_tick_count < 16 ? temperature_tick_count : 16] = nullptr;
+                lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, axis_min_tenths, axis_max_tenths);
+                if (id(history_scale_temperature) != nullptr) {
+                  lv_scale_set_range(id(history_scale_temperature), axis_min_tenths, axis_max_tenths);
+                  lv_scale_set_total_tick_count(id(history_scale_temperature), temperature_tick_count);
+                  lv_scale_set_major_tick_every(id(history_scale_temperature), 1);
+                  lv_scale_set_text_src(id(history_scale_temperature), temperature_tick_labels);
+                }
+                lv_chart_set_div_line_count(chart, temperature_tick_count, 5);
+
+                // Keep only the room and target temperature curves. HVAC activity
+                // is represented as translucent time bands behind the plot instead
+                // of a second Y-axis or a row of categorical dots.
+                lv_chart_set_all_values(chart, id(history_temperature_series), LV_CHART_POINT_NONE);
+                lv_chart_set_all_values(chart, id(history_target_series), LV_CHART_POINT_NONE);
+
+                for (size_t point = 0; point < max_points; point++) {
+                  if (point >= count) continue;
+                  const float room_temp = temperatures[point].as<float>();
+                  const float target_temp = targets[point].as<float>();
+                  const int32_t room_value = (std::isfinite(room_temp) && room_temp > -50.0f)
+                      ? (int32_t) lroundf(room_temp * 10.0f) : LV_CHART_POINT_NONE;
+                  const int32_t target_value = (std::isfinite(target_temp) && target_temp > -50.0f)
+                      ? (int32_t) lroundf(target_temp * 10.0f) : LV_CHART_POINT_NONE;
+                  lv_chart_set_series_value_by_id(chart, id(history_temperature_series), point, room_value);
+                  lv_chart_set_series_value_by_id(chart, id(history_target_series), point, target_value);
+                }
+
+                // Rebuild the background activity bands. Adjacent samples with
+                // the same HVAC action are merged into one rectangle to keep the
+                // number of LVGL objects low. The background container was created
+                // before the chart, so the chart's grid and temperature lines draw
+                // cleanly above these translucent regions.
+                lv_obj_t *activity_bg = id(history_activity_bg_container);
+                if (activity_bg != nullptr) {
+                  lv_obj_clean(activity_bg);
+                  const int32_t plot_width = lv_obj_get_width(activity_bg);
+                  const int32_t plot_height = lv_obj_get_height(activity_bg);
+                  const bool dark_theme = id(display_dark_mode).state;
+                  auto activity_color = [&](int action) -> lv_color_t {
+                    if (action == 1) return lv_color_hex(dark_theme ? 0xFF805C : 0xD85B32); // heating
+                    if (action == 2) return lv_color_hex(dark_theme ? 0x56B7F2 : 0x0878B5); // cooling
+                    return lv_color_hex(dark_theme ? 0xB89AF2 : 0x7850A8);                 // fan/dry
+                  };
+                  if (count > 0 && plot_width > 0 && plot_height > 0) {
+                    int run_action = activities[0].as<int>();
+                    size_t run_start = 0;
+                    for (size_t point = 1; point <= count; point++) {
+                      const int next_action = (point < count) ? activities[point].as<int>() : -1;
+                      if (next_action != run_action) {
+                        if (run_action >= 1 && run_action <= 3) {
+                          const int32_t x1 = (int32_t)((run_start * (size_t)plot_width) / max_points);
+                          const int32_t x2 = (int32_t)((point * (size_t)plot_width) / max_points);
+                          const int32_t band_width = (x2 > x1) ? (x2 - x1) : 1;
+                          lv_obj_t *band = lv_obj_create(activity_bg);
+                          lv_obj_set_pos(band, x1, 0);
+                          lv_obj_set_size(band, band_width, plot_height);
+                          lv_obj_set_style_bg_color(band, activity_color(run_action), LV_PART_MAIN);
+                          lv_obj_set_style_bg_opa(band, LV_OPA_20, LV_PART_MAIN);
+                          lv_obj_set_style_border_width(band, 0, LV_PART_MAIN);
+                          lv_obj_set_style_radius(band, 0, LV_PART_MAIN);
+                          lv_obj_set_style_pad_all(band, 0, LV_PART_MAIN);
+                          lv_obj_clear_flag(band, LV_OBJ_FLAG_SCROLLABLE);
+                          lv_obj_clear_flag(band, LV_OBJ_FLAG_CLICKABLE);
+                        }
+                        run_action = next_action;
+                        run_start = point;
+                      }
+                    }
+                  }
+                }
+
+                const char *status_text = payload["status_text"] | "Home Assistant Recorder history loaded";
+                ESP_LOGI("history", "%s: %u temperature samples for %s",
+                         status_text, (unsigned)valid_temperature_points,
+                         id(active_climate_entity).c_str());
+                lv_chart_refresh(chart);
+                // Show the chart immediately when the Recorder response is ready.
+                lv_obj_clear_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+          on_error:
+            - lambda: |-
+                lv_label_set_text(id(lbl_history_loading), "History unavailable");
+                lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+            - logger.log: "Home Assistant Recorder history request failed"
+            - logger.log: "History unavailable - check Native API action permissions and Recorder"
+
+  - id: sync_env_label
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_env_combined
+          text: !lambda |-
+            char t_buf[16] = "--.-°C";
+            char h_buf[16] = "--%";
+            const bool have_temp = !isnan(id(active_current_temp));
+            const bool have_humidity = !isnan(id(active_humidity));
+            if (have_temp) {
+              snprintf(t_buf, sizeof(t_buf), "%.1f°C", id(active_current_temp));
+            }
+            if (have_humidity) {
+              snprintf(h_buf, sizeof(h_buf), "%.0f%%", id(active_humidity));
+            }
+            // When no humidity entity is configured/available, show only temperature.
+            // The label is centre-aligned, so the temperature naturally moves to centre.
+            if (have_temp && !have_humidity) return std::string(t_buf);
+            if (!have_temp && !have_humidity) return std::string("--.-°C");
+            return str_sprintf("%s  •  %s", t_buf, h_buf);
+      - script.execute: update_clock_environment
+
+  - id: debounced_send_setpoint
+    # Wait until the user has stopped adjusting, then send only the latest target.
+    # A new tap restarts this script and replaces the pending target.
+    mode: restart
+    parameters:
+      climate_entity: string
+      target_tenths: int
+      dual_setpoint: bool
+      edit_high: bool
+      current_low: float
+      current_high: float
+      source: string
+    then:
+      - delay: 700ms
+      - lambda: |-
+          ESP_LOGI("setpoint_diag",
+                   "Sending final setpoint: source=%s entity=%s target=%.1f",
+                   source.c_str(), climate_entity.c_str(),
+                   target_tenths / 10.0f);
+          id(setpoint_action_done) = false;
+      - if:
+          condition:
+            lambda: 'return dual_setpoint;'
+          then:
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: !lambda 'return climate_entity;'
+                  target_temp_low: !lambda |-
+                    float v = target_tenths / 10.0f;
+                    return edit_high ? current_low : v;
+                  target_temp_high: !lambda |-
+                    float v = target_tenths / 10.0f;
+                    return edit_high ? v : current_high;
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant completed final dual setpoint: entity=%s",
+                               climate_entity.c_str());
+                      id(setpoint_action_done) = true;
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant rejected final dual setpoint: entity=%s",
+                               climate_entity.c_str());
+                      id(setpoint_action_done) = true;
+          else:
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: !lambda 'return climate_entity;'
+                  temperature: !lambda 'return target_tenths / 10.0f;'
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant completed final setpoint: entity=%s target=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant action failed: entity=%s target=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
+      - wait_until:
+          condition:
+            lambda: 'return id(setpoint_action_done);'
+          timeout: 30s
+      - if:
+          condition:
+            lambda: 'return !id(setpoint_action_done);'
+          then:
+            - lambda: |-
+                ESP_LOGE("setpoint_diag",
+                         "Timed out waiting for Home Assistant final setpoint: entity=%s target=%.1f",
+                         climate_entity.c_str(), target_tenths / 10.0f);
+      - lambda: |-
+          id(setpoint_requests_pending) = 0;
+          id(setpoint_expected_tenths) = target_tenths;
+          ESP_LOGI("setpoint_diag",
+                   "Final setpoint request finished: target=%.1f",
+                   target_tenths / 10.0f);
+      - script.execute: refresh_display_data
+
+  - id: send_hvac_mode
+    mode: restart
+    parameters:
+      hvac_mode: string
+    then:
+      - homeassistant.action:
+          action: climate.set_hvac_mode
+          data:
+            entity_id: !lambda 'return id(active_climate_entity);'
+            hvac_mode: !lambda 'return hvac_mode;'
+
+# -------------------------------------------------------------------------
+# LVGL MATERIAL DESIGN 3 INTERFACE
+# -------------------------------------------------------------------------
