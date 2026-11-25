@@ -1,0 +1,274 @@
+script:
+  - id: sync_setpoint_ui
+    mode: restart
+    then:
+      - lambda: |-
+          bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
+          if (dual_valid) {
+            lv_obj_clear_flag(id(dual_selector_row), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(dual_selector_row), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          float active_val = NAN;
+          if (dual_valid) {
+            active_val = id(edit_high_setpoint) ? id(active_target_temp_high) : id(active_target_temp_low);
+          } else if (!isnan(id(active_target_temperature))) {
+            active_val = id(active_target_temperature);
+          }
+
+          // Keep the optimistic local setpoint while an adjustment is pending.
+          // Recorder/config snapshots can lag behind the climate service call.
+          if (!id(setpoint_adjusting) && !isnan(active_val)) {
+            id(active_target_tenths) = ((int)round(active_val * 2.0f)) * 5;
+          }
+
+          if (!isnan(id(active_target_temp_low))) {
+            lv_label_set_text_fmt(id(lbl_dual_low), "H %.1f°", id(active_target_temp_low));
+          }
+          if (!isnan(id(active_target_temp_high))) {
+            lv_label_set_text_fmt(id(lbl_dual_high), "C %.1f°", id(active_target_temp_high));
+          }
+      - lvgl.arc.update:
+          id: climate_arc
+          value: !lambda 'return id(active_target_tenths);'
+      - script.execute: render_setpoint
+      - script.wait: render_setpoint
+  - id: render_setpoint
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_target_whole
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("--");
+            return str_sprintf("%d", id(active_target_tenths) / 10);
+      - lvgl.label.update:
+          id: lbl_target_unit
+          text: "°C"
+      - lvgl.label.update:
+          id: lbl_target_decimal
+          text: !lambda |-
+            if (!id(climate_data_ready)) return std::string("");
+            return str_sprintf(".%d", id(active_target_tenths) % 10);
+      - lambda: |-
+          // Anchor both detail labels directly to the main number.
+          // Align-to uses the number's actual LVGL bounds and avoids screen-relative
+          // coordinates that could push either label beyond the 480x480 canvas.
+          lv_obj_t *whole = id(lbl_target_whole);
+          lv_obj_t *unit = id(lbl_target_unit);
+          lv_obj_t *decimal = id(lbl_target_decimal);
+          lv_obj_update_layout(lv_obj_get_parent(whole));
+          lv_obj_update_layout(whole);
+          lv_obj_align_to(unit, whole, LV_ALIGN_OUT_RIGHT_TOP, 2, 17);
+          lv_obj_align_to(decimal, whole, LV_ALIGN_OUT_RIGHT_BOTTOM, -2, -21);
+      - script.execute: update_current_temp_dot
+  - id: update_current_temp_dot
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t *arc = id(climate_arc);
+          lv_obj_t *dot = id(current_temp_dot);
+
+          if (!id(show_current_temp_dot).state) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          const float current_temp = id(active_current_temp);
+          if (isnan(current_temp)) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          // Map the current temperature to the arc's configured scale and angles.
+          const float arc_min = (float) lv_arc_get_min_value(arc) / 10.0f;
+          const float arc_max = (float) lv_arc_get_max_value(arc) / 10.0f;
+          if (arc_max <= arc_min) {
+            lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          float clamped_temp = current_temp;
+          if (clamped_temp < arc_min) clamped_temp = arc_min;
+          if (clamped_temp > arc_max) clamped_temp = arc_max;
+          const float fraction = (clamped_temp - arc_min) / (arc_max - arc_min);
+
+          const float start_angle = (float) lv_arc_get_bg_angle_start(arc);
+          float end_angle = (float) lv_arc_get_bg_angle_end(arc);
+          if (end_angle < start_angle) end_angle += 360.0f;
+          const float angle_deg = start_angle + fraction * (end_angle - start_angle);
+          const float angle_rad = angle_deg * 0.017453292519943295f;
+
+          // Reproduce LVGL's arc centre/radius calculation from the actual
+          // widget dimensions and style padding, so the dot stays on the arc.
+          lv_obj_update_layout(lv_obj_get_parent(arc));
+          const int32_t arc_w = lv_obj_get_width(arc);
+          const int32_t arc_h = lv_obj_get_height(arc);
+          const int32_t pad_l = lv_obj_get_style_pad_left(arc, LV_PART_MAIN);
+          const int32_t pad_r = lv_obj_get_style_pad_right(arc, LV_PART_MAIN);
+          const int32_t pad_t = lv_obj_get_style_pad_top(arc, LV_PART_MAIN);
+          const int32_t pad_b = lv_obj_get_style_pad_bottom(arc, LV_PART_MAIN);
+
+          int32_t content_w = arc_w - pad_l - pad_r;
+          int32_t content_h = arc_h - pad_t - pad_b;
+          int32_t radius = (content_w < content_h ? content_w : content_h) / 2;
+
+          // The indicator may have its own padding; match its actual radius.
+          int32_t ind_pad_l = lv_obj_get_style_pad_left(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_r = lv_obj_get_style_pad_right(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_t = lv_obj_get_style_pad_top(arc, LV_PART_INDICATOR);
+          int32_t ind_pad_b = lv_obj_get_style_pad_bottom(arc, LV_PART_INDICATOR);
+          int32_t ind_pad = ind_pad_l;
+          if (ind_pad_r > ind_pad) ind_pad = ind_pad_r;
+          if (ind_pad_t > ind_pad) ind_pad = ind_pad_t;
+          if (ind_pad_b > ind_pad) ind_pad = ind_pad_b;
+          radius -= ind_pad;
+
+          const float center_x = lv_obj_get_x(arc) + pad_l + content_w / 2.0f;
+          const float center_y = lv_obj_get_y(arc) + pad_t + content_h / 2.0f;
+          const float dot_size = 14.0f;
+          const float dot_x = center_x + radius * cosf(angle_rad) - dot_size / 2.0f;
+          const float dot_y = center_y + radius * sinf(angle_rad) - dot_size / 2.0f;
+          lv_obj_set_pos(dot, (lv_coord_t) lroundf(dot_x), (lv_coord_t) lroundf(dot_y));
+
+          // Match the dot to the arc segment it sits on:
+          // coloured when current temperature is at/below the setpoint,
+          // neutral when it is beyond the setpoint.
+          const bool dark = id(display_dark_mode).state;
+          const bool dual_valid =
+              !isnan(id(active_target_temp_low)) &&
+              !isnan(id(active_target_temp_high));
+          const float setpoint = id(active_target_tenths) / 10.0f;
+          const std::string action = id(active_hvac_action);
+          const std::string mode = id(active_hvac_mode);
+          // HVAC action is authoritative; fall back to the selected mode only
+          // when the integration does not publish an action.
+          const std::string visual_action = action.empty()
+              ? (mode == "heat" ? "heating" :
+                 mode == "cool" ? "cooling" :
+                 mode == "dry" ? "drying" :
+                 mode == "fan_only" ? "fan" : "")
+              : action;
+
+          lv_color_t indicator_color;
+          if (dual_valid) {
+            indicator_color = lv_color_hex(
+                id(edit_high_setpoint)
+                    ? (dark ? 0x58B9F7 : 0x0077A8)
+                    : (dark ? 0xFF8A65 : 0xB54A25));
+          } else if (visual_action == "heating" || visual_action == "preheating") {
+            indicator_color = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
+          } else if (visual_action == "cooling") {
+            indicator_color = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
+          } else if (visual_action == "idle") {
+            indicator_color = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator_color = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          } else {
+            indicator_color = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
+          }
+
+          const lv_color_t track_color =
+              lv_color_hex(dark ? 0x22242E : 0xE1E3EA);
+          const lv_color_t dot_color =
+              (current_temp <= setpoint) ? indicator_color : track_color;
+          const lv_color_t outline_color =
+              lv_color_hex(dark ? 0x111318 : 0xF8F9FF);
+
+          lv_obj_set_style_bg_color(dot, dot_color, LV_PART_MAIN);
+          lv_obj_set_style_border_color(dot, outline_color, LV_PART_MAIN);
+          lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_invalidate(dot);
+  - id: debounced_send_setpoint
+    # Wait until the user has stopped adjusting, then send only the latest target.
+    # A new tap restarts this script and replaces the pending target.
+    mode: restart
+    parameters:
+      climate_entity: string
+      target_tenths: int
+      dual_setpoint: bool
+      edit_high: bool
+      current_low: float
+      current_high: float
+      source: string
+    then:
+      - delay: 700ms
+      - lambda: |-
+          ESP_LOGI("setpoint_diag",
+                   "Sending final setpoint: source=%s entity=%s target=%.1f",
+                   source.c_str(), climate_entity.c_str(),
+                   target_tenths / 10.0f);
+          id(setpoint_action_done) = false;
+      - if:
+          condition:
+            lambda: 'return dual_setpoint;'
+          then:
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: !lambda 'return climate_entity;'
+                  target_temp_low: !lambda |-
+                    float v = target_tenths / 10.0f;
+                    return edit_high ? current_low : v;
+                  target_temp_high: !lambda |-
+                    float v = target_tenths / 10.0f;
+                    return edit_high ? v : current_high;
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant completed final dual setpoint: entity=%s",
+                               climate_entity.c_str());
+                      id(setpoint_action_done) = true;
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant rejected final dual setpoint: entity=%s",
+                               climate_entity.c_str());
+                      id(setpoint_action_done) = true;
+          else:
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: !lambda 'return climate_entity;'
+                  temperature: !lambda 'return target_tenths / 10.0f;'
+                on_success:
+                  - lambda: |-
+                      ESP_LOGI("setpoint_diag",
+                               "Home Assistant completed final setpoint: entity=%s target=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
+                on_error:
+                  - lambda: |-
+                      ESP_LOGE("setpoint_diag",
+                               "Home Assistant action failed: entity=%s target=%.1f",
+                               climate_entity.c_str(), target_tenths / 10.0f);
+                      id(setpoint_action_done) = true;
+      - wait_until:
+          condition:
+            lambda: 'return id(setpoint_action_done);'
+          timeout: 30s
+      - if:
+          condition:
+            lambda: 'return !id(setpoint_action_done);'
+          then:
+            - lambda: |-
+                ESP_LOGE("setpoint_diag",
+                         "Timed out waiting for Home Assistant final setpoint: entity=%s target=%.1f",
+                         climate_entity.c_str(), target_tenths / 10.0f);
+      - lambda: |-
+          id(setpoint_requests_pending) = 0;
+          id(setpoint_expected_tenths) = target_tenths;
+          ESP_LOGI("setpoint_diag",
+                   "Final setpoint request finished: target=%.1f",
+                   target_tenths / 10.0f);
+      - script.execute: refresh_display_data
+  - id: send_hvac_mode
+    mode: restart
+    parameters:
+      hvac_mode: string
+    then:
+      - homeassistant.action:
+          action: climate.set_hvac_mode
+          data:
+            entity_id: !lambda 'return id(active_climate_entity);'
+            hvac_mode: !lambda 'return hvac_mode;'
