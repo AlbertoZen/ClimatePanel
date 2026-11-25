@@ -1,0 +1,38 @@
+logger:
+  hardware_uart: UART0
+
+api:
+  encryption:
+    key: ${api_encryption_key}
+  homeassistant_services: true
+  on_client_connected:
+    - lambda: |-
+        // Only record Home Assistant itself, not ESPHome Dashboard or other API clients.
+        if (client_info.find("Home Assistant") != std::string::npos) {
+          id(ha_client_ip) = client_address;
+          ESP_LOGI("ha_ip", "Home Assistant connected from %s", client_address.c_str());
+        } else {
+          ESP_LOGD("ha_ip", "Ignoring API client '%s' at %s", client_info.c_str(), client_address.c_str());
+        }
+    - if:
+        condition:
+          lambda: 'return id(ha_client_ip) != "Waiting for HA...";'
+        then:
+          - script.execute: refresh_display_data
+
+ota:
+  - platform: esphome
+    encryption:
+    on_begin:
+      - light.turn_off:
+          id: display_backlight
+          transition_length: 0s
+      - lambda: "id(display_backlight).loop();"
+
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+  ap:
+    ssid: Heating Control Fallback Hotspot
+
+captive_portal:
