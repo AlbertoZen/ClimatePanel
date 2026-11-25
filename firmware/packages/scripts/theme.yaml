@@ -1,0 +1,380 @@
+script:
+  - id: apply_theme
+    mode: restart
+    then:
+      - lambda: |-
+          const bool dark = id(display_dark_mode).state;
+          const lv_color_t bg = lv_color_hex(dark ? 0x111318 : 0xF8F9FF);
+          // One common neutral fill for clock, +/- buttons, HVAC buttons and cards.
+          const lv_color_t surface = lv_color_hex(dark ? 0x282A34 : 0xE5E7EF);
+          const lv_color_t selected_surface = lv_color_hex(dark ? 0x4A4E60 : 0xCCD0DA);
+          const lv_color_t primary = lv_color_hex(dark ? 0xE2E2E9 : 0x1A1C20);
+          const lv_color_t secondary = lv_color_hex(dark ? 0xC4C6D0 : 0x44474F);
+          const lv_color_t muted = lv_color_hex(dark ? 0x8E9099 : 0x5F636D);
+
+          // Both pages: LvPageType is a wrapper; style the underlying LVGL screens.
+          lv_obj_set_style_bg_color(id(page_thermostat)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_info)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_clock_screen)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(page_history)->obj, bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(lv_scr_act(), bg, LV_PART_MAIN);
+          // An opaque matching background lets the transition use compact RGB565 snapshots.
+          lv_obj_set_style_bg_color(id(thermostat_content), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(thermostat_content), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(info_popup), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(info_popup), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(history_popup), bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(history_popup), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(popup_overlay), lv_color_hex(0x000000), LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(popup_overlay), LV_OPA_60, LV_PART_MAIN);
+          // These are fixed 480x480 dashboards, not scrollable pages.
+          lv_obj_clear_flag(id(page_thermostat)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_info)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_clock_screen)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(page_history)->obj, LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_CLICKABLE);
+          lv_obj_clear_flag(id(popup_overlay), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(info_popup), LV_OBJ_FLAG_SCROLLABLE);
+          lv_obj_clear_flag(id(history_popup), LV_OBJ_FLAG_SCROLLABLE);
+
+          // Remove borders from every visible card and control.
+          auto no_border = [](lv_obj_t *obj) {
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+          };
+          no_border(id(top_clock_pill));
+          no_border(id(btn_climate_prev));
+          no_border(id(btn_climate_next));
+          no_border(id(btn_climate_history));
+          no_border(id(chip_hvac_state));
+          no_border(id(dual_selector_row));
+          no_border(id(btn_select_low));
+          no_border(id(btn_select_high));
+          no_border(id(btn_step_down));
+          no_border(id(btn_step_up));
+          no_border(id(mode_bar_container));
+          no_border(id(btn_mode_off));
+          no_border(id(btn_mode_heat));
+          no_border(id(btn_mode_cool));
+          no_border(id(btn_mode_heat_cool));
+          no_border(id(btn_mode_auto));
+          no_border(id(btn_mode_dry));
+          no_border(id(btn_mode_fan_only));
+          no_border(id(info_card));
+          no_border(id(btn_info_close));
+          no_border(id(clock_env_pill));
+          no_border(id(clock_outside_pill));
+          no_border(id(btn_history_close));
+
+          // Identical neutral surfaces keep the interface visually consistent.
+          lv_obj_set_style_bg_color(id(top_clock_pill), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_prev), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_next), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_climate_history), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(mode_bar_container), surface, LV_PART_MAIN);
+          // Diagnostics content sits directly on the page; no enclosing card surface.
+          lv_obj_set_style_bg_opa(id(info_card), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(dual_selector_row), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_step_down), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_step_up), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_info_close), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_history_close), surface, LV_PART_MAIN);
+          // The history plot is drawn directly on the page, without a panel background.
+          lv_obj_set_style_bg_opa(id(history_chart_container), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_scrollbar_mode(id(page_info)->obj, LV_SCROLLBAR_MODE_OFF);
+          lv_obj_set_scrollbar_mode(id(info_card), LV_SCROLLBAR_MODE_OFF);
+          lv_obj_set_style_bg_color(id(btn_select_low), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_select_high), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_off), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_heat), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_cool), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_heat_cool), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_auto), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_dry), surface, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(btn_mode_fan_only), surface, LV_PART_MAIN);
+
+          // A single quiet selected-state fill for all selectable controls.
+          const lv_style_selector_t checked_selector =
+              static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+              static_cast<lv_style_selector_t>(LV_STATE_CHECKED);
+          const lv_style_selector_t pressed_selector =
+              static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+              static_cast<lv_style_selector_t>(LV_STATE_PRESSED);
+          lv_obj_set_style_bg_color(id(btn_select_low), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_select_high), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_off), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_heat), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_cool), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_heat_cool), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_auto), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_dry), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_mode_fan_only), selected_surface, checked_selector);
+          lv_obj_set_style_bg_color(id(btn_step_down), selected_surface, pressed_selector);
+          lv_obj_set_style_bg_color(id(btn_step_up), selected_surface, pressed_selector);
+
+          // Actual HVAC action takes priority. If unavailable, use the selected
+          // mode for colour only; the label still says e.g. "Heat mode".
+          const std::string current_action = id(active_hvac_action);
+          const std::string current_mode = id(active_hvac_mode);
+          const std::string visual_action = current_action.empty()
+              ? (current_mode == "heat" ? "heating" :
+                 current_mode == "cool" ? "cooling" :
+                 current_mode == "dry" ? "drying" :
+                 current_mode == "fan_only" ? "fan" : "")
+              : current_action;
+          lv_color_t chip_bg = surface;
+          lv_color_t chip_text = secondary;
+          if (visual_action == "heating" || visual_action == "preheating") {
+            chip_bg = lv_color_hex(dark ? 0x5C250E : 0xFCE5DB);
+            chip_text = lv_color_hex(dark ? 0xFFB59A : 0x963C15);
+          } else if (visual_action == "cooling") {
+            chip_bg = lv_color_hex(dark ? 0x003549 : 0xD8F1FF);
+            chip_text = lv_color_hex(dark ? 0x8AD5FF : 0x005B81);
+          } else if (visual_action == "idle") {
+            chip_bg = lv_color_hex(dark ? 0x113828 : 0xD8F2E3);
+            chip_text = lv_color_hex(dark ? 0xA6F2D1 : 0x17613F);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            chip_bg = lv_color_hex(dark ? 0x302542 : 0xE9DDF8);
+            chip_text = lv_color_hex(dark ? 0xD4C0F5 : 0x65448E);
+          }
+          lv_obj_set_style_bg_color(id(chip_hvac_state), chip_bg, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_hvac_state), chip_text, LV_PART_MAIN);
+
+          // Text palette.
+          lv_obj_set_style_text_color(id(lbl_room_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_climate_prev), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_climate_next), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_time), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(clock_date_separator), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_date_separator), LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_whole), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_unit), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_target_decimal), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_env_combined), muted, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_step_down), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_step_up), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_dual_low), lv_color_hex(dark ? 0xFFB59A : 0x963C15), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_dual_high), lv_color_hex(dark ? 0x8AD5FF : 0x005B81), LV_PART_MAIN);
+
+          // Diagnostics page: use the same theme-aware foreground for every
+          // heading and value. This keeps all text legible in both themes.
+          lv_obj_set_style_text_color(id(lbl_info_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_time), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_date), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_env), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_outside), secondary, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_env_pill), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(clock_outside_pill), LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_title), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_axis_temp), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_history_now), secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ssid_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_status_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_uptime_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ip_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_mac_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware_label), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_ssid), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_status), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_uptime), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_display_ip), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_wifi_dbm), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_mac), primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_diag_firmware), primary, LV_PART_MAIN);
+          if (id(climate_loading_overlay) != nullptr) {
+            lv_obj_set_style_bg_color(id(climate_loading_overlay), lv_color_hex(0x080B12), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(id(climate_loading_overlay), LV_OPA_70, LV_PART_MAIN);
+          }
+          if (id(climate_loading_spinner) != nullptr) {
+            lv_obj_set_style_arc_color(id(climate_loading_spinner), lv_color_hex(dark ? 0x536174 : 0xD6DCE5), LV_PART_MAIN);
+            lv_obj_set_style_arc_color(id(climate_loading_spinner), lv_color_hex(dark ? 0x70C7FF : 0x1677C8), LV_PART_INDICATOR);
+          }
+
+          // The chart itself stays transparent so activity bands show through
+          // beneath the temperature lines and grid.
+          if (id(history_chart_obj) != nullptr) {
+            lv_obj_set_style_bg_opa(id(history_chart_obj), LV_OPA_TRANSP, LV_PART_MAIN);
+            // Subtle grid: keep the data curves prominent without a bright lattice.
+            lv_obj_set_style_line_color(id(history_chart_obj),
+                                        lv_color_hex(dark ? 0x343A46 : 0xC9CFD9), LV_PART_MAIN);
+            lv_obj_set_style_line_opa(id(history_chart_obj),
+                                      dark ? LV_OPA_30 : LV_OPA_50, LV_PART_MAIN);
+            lv_obj_set_style_line_width(id(history_chart_obj), 1, LV_PART_MAIN);
+            lv_chart_set_series_color(id(history_chart_obj), id(history_temperature_series),
+                                      lv_color_hex(dark ? 0xF0F1F5 : 0x171A20));
+            lv_chart_set_series_color(id(history_chart_obj), id(history_target_series),
+                                      lv_color_hex(dark ? 0x8BD49A : 0x287A43));
+            lv_chart_refresh(id(history_chart_obj));
+          }
+
+          // Keep the single temperature scale and time scale legible in both themes.
+          const lv_color_t axis_line = lv_color_hex(dark ? 0x414855 : 0xC2C8D2);
+          const lv_color_t axis_text = lv_color_hex(dark ? 0xC4C6D0 : 0x44474F);
+          auto style_history_scale = [&](lv_obj_t *scale) {
+            if (scale == nullptr) return;
+            lv_obj_set_style_bg_opa(scale, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_set_style_pad_all(scale, 0, LV_PART_MAIN);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_MAIN);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_ITEMS);
+            lv_obj_set_style_line_color(scale, axis_line, LV_PART_INDICATOR);
+            lv_obj_set_style_text_color(scale, axis_text, LV_PART_INDICATOR);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_30 : LV_OPA_50, LV_PART_MAIN);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_30 : LV_OPA_50, LV_PART_ITEMS);
+            lv_obj_set_style_line_opa(scale, dark ? LV_OPA_50 : LV_OPA_60, LV_PART_INDICATOR);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_MAIN);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_ITEMS);
+            lv_obj_set_style_line_width(scale, 1, LV_PART_INDICATOR);
+            lv_obj_set_style_length(scale, 4, LV_PART_ITEMS);
+            lv_obj_set_style_length(scale, 5, LV_PART_INDICATOR);
+          };
+          style_history_scale(id(history_scale_temperature));
+          style_history_scale(id(history_scale_time));
+
+          // Subtle inner-dial tint follows actual action, or selected mode when
+          // the integration does not expose hvac_action.
+          lv_color_t inner_tint = lv_color_hex(dark ? 0xFF8A65 : 0xD85B32);
+          if (visual_action == "cooling") {
+            inner_tint = lv_color_hex(dark ? 0x58B9F7 : 0x1686B8);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            inner_tint = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          }
+          const bool hvac_active = visual_action == "heating" || visual_action == "preheating" ||
+                                   visual_action == "cooling" || visual_action == "fan" ||
+                                   visual_action == "drying";
+          lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
+          // Blend the tint vertically into the actual page background so the
+          // lower edge disappears into the open end of the thermostat arc.
+          // Keep a uniform, subtle tint: the display does not render the desired fade cleanly.
+          lv_obj_set_style_bg_opa(id(climate_arc_inner_tint), hvac_active ? LV_OPA_10 : LV_OPA_TRANSP, LV_PART_MAIN);
+          lv_obj_invalidate(id(climate_arc_inner_tint));
+
+          lv_obj_set_style_arc_color(id(climate_arc), lv_color_hex(dark ? 0x22242E : 0xE1E3EA), LV_PART_MAIN);
+          lv_color_t indicator = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
+          const bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
+          if (dual_valid) {
+            indicator = lv_color_hex(id(edit_high_setpoint) ? (dark ? 0x58B9F7 : 0x0077A8) : (dark ? 0xFF8A65 : 0xB54A25));
+          } else if (visual_action == "cooling") {
+            indicator = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
+          } else if (visual_action == "idle") {
+            indicator = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          } else if (visual_action != "heating" && visual_action != "preheating") {
+            indicator = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
+          }
+          lv_obj_set_style_arc_color(id(climate_arc), indicator, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(climate_arc), lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+      - lvgl.widget.update:
+          id: img_room_icon_home
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_sofa
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_bed
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_chef_hat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_thermostat
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fan
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_radiator
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_fire
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_snowflake
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_desk
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_server
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_pool
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_garage
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_room_icon_air_conditioner
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_1
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_2
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_3
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_wifi_strength_4
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_history_icon
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xC4C6D0 : 0x44474F);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_info_close
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      - lvgl.widget.update:
+          id: img_history_close
+          image_recolor: !lambda 'return lv_color_hex(id(display_dark_mode).state ? 0xE2E2E9 : 0x1A1C20);'
+          image_recolor_opa: COVER
+      # The clock screensaver always uses its own dark palette. This is applied
+      # after the global theme so Manual/Sun changes only affect the thermostat UI.
+      - lambda: |-
+          const lv_color_t clock_bg = lv_color_hex(0x111318);
+          const lv_color_t clock_primary = lv_color_hex(0xE2E2E9);
+          const lv_color_t clock_secondary = lv_color_hex(0xC4C6D0);
+          lv_obj_set_style_bg_color(id(page_clock_screen)->obj, clock_bg, LV_PART_MAIN);
+          lv_obj_set_style_bg_opa(id(page_clock_screen)->obj, LV_OPA_COVER, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_time), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_date), clock_secondary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_env), clock_primary, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_clock_screen_outside), clock_secondary, LV_PART_MAIN);
+      - script.execute: update_current_temp_dot
+  - id: apply_sun_theme
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_sun_state).state == "below_horizon";'
+          then:
+            - switch.turn_on: display_dark_mode
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ha_sun_state).state == "above_horizon";'
+                then:
+                  - switch.turn_off: display_dark_mode
+      - script.execute: apply_theme
