@@ -56,6 +56,10 @@ jobs:
 
           component = Path("custom_components/climatepanel")
           manifest = json.loads((component / "manifest.json").read_text())
+          hacs_metadata = json.loads(Path("hacs.json").read_text())
+          assert hacs_metadata["name"] == "ClimatePanel"
+          assert hacs_metadata["homeassistant"] == "2026.11.0"
+          assert hacs_metadata["render_readme"] is True
           assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
           assert manifest["version"] == "2.1.3"
