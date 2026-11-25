@@ -1,4 +1,6 @@
-# Heating Controller
+# ClimatePanel
+
+**Smart climate control for Home Assistant**
 
 **Release: 2026.11.09**
 
@@ -26,7 +28,7 @@ Climate entities are configured in Home Assistant, not in ESPHome substitutions.
 
 After installing the integration, open:
 
-**Settings → Devices & services → Heating Controller → Configure**
+**Settings → Devices & services → ClimatePanel → Configure**
 
 First choose between two and four rooms and, optionally, an outdoor weather entity (recommended) or a legacy temperature sensor. Weather entities supply the current reading through their `temperature` attribute; the integration normalises it to °C for the display. The outdoor reading appears on the dimmed clock screensaver, alongside the indoor temperature and humidity. The next step shows only the climate, humidity and icon selectors for the selected number of rooms. The first room is the Master room and remains the source for the dimmed clock screen's indoor readings.
 
@@ -58,15 +60,15 @@ Recorder reads run through Recorder's dedicated database executor. Recorder must
 
 ## Diagnostics
 
-The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script embeds this value in `/config/esphome/display-1.yaml`. The script prints `Installed firmware identifier: ...` only after verifying that the deployed file contains the Git value. Then compile and install **that exact file** in the ESPHome Dashboard. Do not compile `/config/thermostat-esphome/display-1.yaml` from the Git checkout directly: that source file deliberately retains the `local` placeholder. You can independently confirm the deployed value with `grep build_identifier /config/esphome/display-1.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
+The system diagnostics modal shows the Wi-Fi MAC address, IP address, SSID, signal strength and firmware identifier. The identifier is the exact Git tag when the deployed commit is tagged; otherwise it is the first 12 characters of the Git commit SHA. The deployment script embeds this value in `/config/esphome/display-1.yaml`. The script prints `Installed firmware identifier: ...` only after verifying that the deployed file contains the Git value. Then compile and install **that exact file** in the ESPHome Dashboard. Do not compile `/config/climatepanel/display-1.yaml` from the Git checkout directly: that source file deliberately retains the `local` placeholder. You can independently confirm the deployed value with `grep build_identifier /config/esphome/display-1.yaml`. The MAC value is synchronised into the diagnostic label after the LVGL interface has been created, so its early Wi-Fi component publication is not lost.
 
 ## Install or update
 
 1. Ensure the integration directory is deployed to `/config/custom_components/heating_controller_history/`.
-2. Run `/config/thermostat-esphome/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used. Confirm its output reports a tag or 12-character commit SHA.
+2. Run `/config/climatepanel/scripts/deploy-thermostat.sh` from the Studio Code Server terminal so the current Git-managed deployment script is used. Confirm its output reports a tag or 12-character commit SHA.
 3. In the ESPHome Dashboard, compile and install `/config/esphome/display-1.yaml` (the deployed copy, not the Git checkout's source YAML).
 4. Restart Home Assistant when the script reports that the integration has changed.
-5. On the first migration from the old YAML package, add **Heating Controller** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
+5. On the first migration from the old YAML package, add **ClimatePanel** from **Settings → Devices & services → Add integration**. The initial form is prefilled with the existing three climate entities and their humidity sensors.
 6. In **Settings → Devices & services → ESPHome**, open the display device's Configure dialog and ensure it is allowed to perform Home Assistant actions.
 
 The deployment script retires the former `/config/packages/heating_controller_history.yaml` package and archives it with the existing integration backup. It does not change the top-level packages include in `configuration.yaml`.
