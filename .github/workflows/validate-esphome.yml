@@ -64,7 +64,7 @@ jobs:
           assert hacs_metadata["render_readme"] is True
           assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
-          version_match = re.fullmatch(r"(\\d{4})\\.(\\d{2})\\.(\\d{2})-([1-9]\\d*)", manifest["version"])
+          version_match = re.fullmatch(r"(\d{4})\\.(\d{2})\\.(\d{2})-([1-9]\d*)", manifest["version"])
           assert version_match, manifest["version"]
           date(int(version_match.group(1)), int(version_match.group(2)), int(version_match.group(3)))
           assert manifest["documentation"] == "https://github.com/AlbertoZen/ClimatePanel#readme"
