@@ -1,0 +1,41 @@
+lvgl:
+  animations:
+    - id: climate_snapshot_out_left
+      duration: 250ms
+      timing: ease_in_out
+      widgets:
+        - id: img_climate_snapshot_out
+          translate_x:
+            from: 0
+            to: -480
+
+    - id: climate_snapshot_in_from_right
+      duration: 250ms
+      timing: ease_in_out
+      widgets:
+        - id: img_climate_snapshot_in
+          translate_x:
+            from: 480
+            to: 0
+      on_stop:
+        - script.execute: finish_climate_snapshot_transition
+
+    - id: climate_snapshot_out_right
+      duration: 250ms
+      timing: ease_in_out
+      widgets:
+        - id: img_climate_snapshot_out
+          translate_x:
+            from: 0
+            to: 480
+
+    - id: climate_snapshot_in_from_left
+      duration: 250ms
+      timing: ease_in_out
+      widgets:
+        - id: img_climate_snapshot_in
+          translate_x:
+            from: -480
+            to: 0
+      on_stop:
+        - script.execute: finish_climate_snapshot_transition
