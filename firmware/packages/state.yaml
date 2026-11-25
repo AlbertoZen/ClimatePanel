@@ -1,0 +1,192 @@
+globals:
+  - id: edit_high_setpoint
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: active_target_tenths
+    type: int
+    restore_value: no
+    initial_value: '200'
+  - id: setpoint_adjusting
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_arc_user_changed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_requests_pending
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: setpoint_action_done
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: setpoint_expected_tenths
+    type: int
+    restore_value: no
+    initial_value: '200'
+  - id: ha_client_ip
+    type: std::string
+    restore_value: no
+    initial_value: '"Waiting for HA..."'
+  - id: display_is_dimmed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: display_showing_clock
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # Small periodic offsets on the dim clock page reduce static image retention.
+  - id: clock_screen_shift_step
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: history_page_visible
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: history_sample_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: history_chart_obj
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_scale_temperature
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_activity_bg_container
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_scale_time
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_spinner
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_overlay
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: climate_loading_label
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_temperature_series
+    type: lv_chart_series_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: history_target_series
+    type: lv_chart_series_t*
+    restore_value: no
+    initial_value: 'nullptr'
+  - id: active_climate_index
+    type: int
+    restore_value: yes
+    initial_value: '0'
+  - id: climate_navigation_busy
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: climate_snapshot_capture_ok
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: active_climate_entity
+    type: std::string
+    restore_value: no
+    initial_value: '"climate.none"'
+  - id: active_climate_name
+    type: std::string
+    restore_value: no
+    initial_value: '"Master"'
+  - id: active_current_temp
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_humidity
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temperature
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temp_low
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_target_temp_high
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: active_supported_modes
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_hvac_mode
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_hvac_action
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: active_room_icon
+    type: std::string
+    restore_value: no
+    initial_value: '"home"'
+  # False until the selected room has a valid current temperature and setpoint.
+  - id: climate_data_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: configured_climate_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: master_current_temp_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: master_humidity_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+  - id: outside_temperature_dynamic
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      - script.execute: update_clock_label
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - script.execute: update_clock_label
+          - if:
+              condition:
+                lambda: 'return id(display_showing_clock);'
+              then:
+                - script.execute: shift_clock_screen
+
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_client_ip) != "Waiting for HA...";'
+          then:
+            - script.execute: refresh_display_data
