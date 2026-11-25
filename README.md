@@ -2,7 +2,7 @@
 
 **Smart climate control for Home Assistant**
 
-**Release: 2.1.3 (2026-11-25)**
+**Release: 2026.11.25-1**
 
 This release includes the thermostat display setpoint-control improvements:
 - Plus/minus and arc adjustments update locally while the user is interacting.
