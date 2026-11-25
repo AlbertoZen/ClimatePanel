@@ -19,7 +19,14 @@ packages:
     files:
       - firmware/packages/hardware.yaml
       - firmware/packages/network.yaml
-      - firmware/packages/runtime.yaml
+      - firmware/packages/state.yaml
+      - firmware/packages/controls.yaml
+      - firmware/packages/sensors.yaml
+      - firmware/packages/scripts/display.yaml
+      - firmware/packages/scripts/climate.yaml
+      - firmware/packages/scripts/setpoint.yaml
+      - firmware/packages/scripts/theme.yaml
+      - firmware/packages/scripts/history.yaml
       - firmware/packages/assets.yaml
       - firmware/packages/ui/base.yaml
       - firmware/packages/ui/thermostat.yaml
