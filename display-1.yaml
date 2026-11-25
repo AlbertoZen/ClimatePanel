@@ -547,12 +547,12 @@ font:
     id: font_small
     size: 16
     bpp: 4
-    glyphs: '0123456789.-+/°%•()[]ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
+    glyphs: '0123456789.-+/°%•()[]_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
   - file: "gfonts://Google Sans Flex@500"
     id: font_medium
     size: 22
     bpp: 4
-    glyphs: '0123456789.-+/°%•()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
+    glyphs: '0123456789.-+/°%•()_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz: '
   - file: "gfonts://Google Sans Flex@700"
     id: font_button_sym
     size: 28
