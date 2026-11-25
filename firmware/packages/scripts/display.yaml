@@ -1,0 +1,225 @@
+script:
+  - id: display_user_activity
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition:
+            lambda: 'return id(display_showing_clock);'
+          then:
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.page.show:
+                id: page_thermostat
+            - script.execute: refresh_display_data
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Activity detected: resuming on climate 1"
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN); id(active_climate_index) = 0;'
+            - lvgl.resume:
+            - lvgl.page.show:
+                id: page_thermostat
+            - script.execute: refresh_display_data
+            - lvgl.widget.redraw:
+      - lambda: 'id(display_is_dimmed) = false;'
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(display_brightness_control).state / 100.0f;'
+      - script.execute: display_idle_sequence
+  - id: show_idle_clock_screen
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log: "Idle screen: resuming LVGL for clock"
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lambda: |-
+          id(display_showing_clock) = true;
+          id(history_page_visible) = false;
+          id(display_is_dimmed) = true;
+          lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+          id(clock_screen_shift_step) = 0;
+          lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+      - lvgl.page.show:
+          id: page_clock_screen
+      - lvgl.widget.redraw:
+      - script.execute: update_clock_label
+      - script.execute: update_clock_environment
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+  - id: apply_idle_screen_off
+    mode: restart
+    then:
+      - script.stop: display_idle_sequence
+      - if:
+          condition:
+            lambda: 'return id(display_showing_clock);'
+          then:
+            - lambda: |-
+                id(display_showing_clock) = false;
+                id(history_page_visible) = false;
+                lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);
+            - lvgl.pause:
+          else:
+            - if:
+                condition:
+                  not: lvgl.is_paused
+                then:
+                  - script.execute: display_idle_sequence
+  - id: display_idle_sequence
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(display_is_dimmed);'
+          then:
+            - delay: !lambda 'return (uint32_t)(id(display_dim_delay).state * 1000.0f);'
+            - lambda: 'id(display_is_dimmed) = true;'
+            - logger.log: "Display idle: dimming backlight"
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+      - delay: !lambda 'return (uint32_t)(id(display_off_delay).state * 1000.0f);'
+      - if:
+          condition:
+            lambda: 'return id(display_idle_screen).current_option() == "Clock";'
+          then:
+            - logger.log: "Display idle: showing dimmed clock page"
+            - lambda: 'id(display_showing_clock) = true; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.page.show:
+                id: page_clock_screen
+            - lambda: |-
+                id(clock_screen_shift_step) = 0;
+                lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER, 0, 0);
+            - script.execute: update_clock_label
+            - script.execute: update_clock_environment
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(display_dimmed_brightness_control).state / 100.0f;'
+          else:
+            - logger.log: "Display idle: turning backlight off and pausing LVGL"
+            - lambda: 'id(display_showing_clock) = false; id(history_page_visible) = false; lv_obj_add_flag(id(popup_overlay), LV_OBJ_FLAG_HIDDEN);'
+            - lvgl.pause:
+  - id: update_clock_label
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_clock
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("-- ---");
+            char date_buf[16];
+            now.strftime(date_buf, sizeof(date_buf), "%d %b");
+            return std::string(date_buf);
+      - lvgl.label.update:
+          id: lbl_clock_time
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("--:--");
+            char time_buf[8];
+            now.strftime(time_buf, sizeof(time_buf), "%H:%M");
+            return std::string(time_buf);
+      - lvgl.label.update:
+          id: lbl_clock_screen_time
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("--:--");
+            char time_buf[8];
+            now.strftime(time_buf, sizeof(time_buf), "%H:%M");
+            return std::string(time_buf);
+      - lvgl.label.update:
+          id: lbl_clock_screen_date
+          text: !lambda |-
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) return std::string("-- --- ----");
+            char date_buf[32];
+            now.strftime(date_buf, sizeof(date_buf), "%a, %d %b %Y");
+            return std::string(date_buf);
+      - script.execute: update_clock_environment
+  - id: update_clock_environment
+    mode: restart
+    then:
+      - lambda: |-
+          const bool have_indoor = !isnan(id(master_current_temp_dynamic)) ||
+                                   !isnan(id(master_humidity_dynamic));
+          const bool have_outdoor = !isnan(id(outside_temperature_dynamic));
+          if (have_indoor) lv_obj_clear_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(clock_env_pill), LV_OBJ_FLAG_HIDDEN);
+          if (have_outdoor) lv_obj_clear_flag(id(clock_outside_pill), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(clock_outside_pill), LV_OBJ_FLAG_HIDDEN);
+      - lvgl.label.update:
+          id: lbl_clock_screen_env
+          text: !lambda |-
+            const float master_temp = id(master_current_temp_dynamic);
+            const float master_humidity = id(master_humidity_dynamic);
+            const bool have_temp = !isnan(master_temp);
+            const bool have_humidity = !isnan(master_humidity);
+            if (have_temp && have_humidity)
+              return str_sprintf("%.1f°C  •  %.0f%%", master_temp, master_humidity);
+            if (have_temp) return str_sprintf("%.1f°C", master_temp);
+            if (have_humidity) return str_sprintf("%.0f%%", master_humidity);
+            return std::string("");
+      - lvgl.label.update:
+          id: lbl_clock_screen_outside
+          text: !lambda |-
+            if (isnan(id(outside_temperature_dynamic))) return std::string("");
+            return str_sprintf("Outside  %.1f°C", id(outside_temperature_dynamic));
+  - id: shift_clock_screen
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(display_showing_clock)) return;
+          static const int8_t x_offsets[8] = {0, 2, 3, 1, -2, -3, -1, 0};
+          static const int8_t y_offsets[8] = {0, -2, 1, 3, 2, -1, -3, -2};
+          const int step = id(clock_screen_shift_step) % 8;
+          id(clock_screen_shift_step) = (step + 1) % 8;
+          lv_obj_align(id(clock_screen_group), LV_ALIGN_CENTER,
+                       x_offsets[step], y_offsets[step]);
+          lv_obj_invalidate(id(clock_screen_group));
+  - id: update_wifi_icon
+    mode: restart
+    then:
+      - lambda: |-
+          const float rssi = id(diag_wifi_signal).state;
+          auto visible = [](lv_obj_t *obj, bool show) {
+            if (show) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+          };
+          const bool valid = !isnan(rssi);
+          int level = 0;
+          if (valid) {
+            if (rssi >= -60.0f) level = 4;
+            else if (rssi >= -70.0f) level = 3;
+            else if (rssi >= -80.0f) level = 2;
+            else level = 1;
+          }
+          visible(id(img_wifi_strength_1), level == 1);
+          visible(id(img_wifi_strength_2), level == 2);
+          visible(id(img_wifi_strength_3), level == 3);
+          visible(id(img_wifi_strength_4), level == 4);
+  - id: sync_env_label
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: lbl_env_combined
+          text: !lambda |-
+            char t_buf[16] = "--.-°C";
+            char h_buf[16] = "--%";
+            const bool have_temp = !isnan(id(active_current_temp));
+            const bool have_humidity = !isnan(id(active_humidity));
+            if (have_temp) {
+              snprintf(t_buf, sizeof(t_buf), "%.1f°C", id(active_current_temp));
+            }
+            if (have_humidity) {
+              snprintf(h_buf, sizeof(h_buf), "%.0f%%", id(active_humidity));
+            }
+            // When no humidity entity is configured/available, show only temperature.
+            // The label is centre-aligned, so the temperature naturally moves to centre.
+            if (have_temp && !have_humidity) return std::string(t_buf);
+            if (!have_temp && !have_humidity) return std::string("--.-°C");
+            return str_sprintf("%s  •  %s", t_buf, h_buf);
+      - script.execute: update_clock_environment
