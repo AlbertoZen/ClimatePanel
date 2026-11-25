@@ -84,7 +84,7 @@ jobs:
           integration = (component / "__init__.py").read_text()
           entrypoint = Path("display-1.yaml").read_text()
           package_paths = sorted(Path("firmware/packages").rglob("*.yaml"))
-          assert len(package_paths) == 9, [str(path) for path in package_paths]
+          assert len(package_paths) == 16, [str(path) for path in package_paths]
           package_text = "\n".join(path.read_text() for path in package_paths)
           firmware = entrypoint + "\n" + package_text
           assert 'ref: ${firmware_ref}' in entrypoint
