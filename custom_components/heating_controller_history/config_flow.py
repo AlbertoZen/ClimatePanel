@@ -1,4 +1,4 @@
-"""Config and options flows for Heating Controller."""
+"""Config and options flows for ClimatePanel."""
 
 from __future__ import annotations
 
