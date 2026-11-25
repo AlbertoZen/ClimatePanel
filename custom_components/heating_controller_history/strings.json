@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Heating Controller",
+        "title": "ClimatePanel",
         "description": "Choose how many rooms to display and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver.",
         "data": {
           "room_count": "Number of rooms",
@@ -10,7 +10,7 @@
         }
       },
       "rooms": {
-        "title": "Heating Controller rooms",
+        "title": "ClimatePanel rooms",
         "description": "Select a climate entity, optional humidity sensor and icon for each enabled room.",
         "data": {
           "climate_1": "Room 1 climate (Master)",
@@ -35,13 +35,13 @@
       "invalid_icon": "Choose one of the supported room icons."
     },
     "abort": {
-      "already_configured": "Heating Controller is already configured."
+      "already_configured": "ClimatePanel is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Heating Controller rooms",
+        "title": "ClimatePanel rooms",
         "description": "Choose the number of active rooms and optionally select an outdoor weather entity (recommended) or a legacy temperature sensor. Its temperature is shown on the dimmed clock screensaver. Settings for disabled rooms are retained.",
         "data": {
           "room_count": "Number of rooms",
