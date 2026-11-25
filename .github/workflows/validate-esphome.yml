@@ -61,7 +61,9 @@ jobs:
           hacs_metadata = json.loads(Path("hacs.json").read_text())
           assert hacs_metadata["name"] == "ClimatePanel"
           assert hacs_metadata["homeassistant"] == "2026.11.0"
-          assert hacs_metadata["render_readme"] is True
+          assert hacs_metadata["filename"] == ""
+          assert hacs_metadata["hacs"] == "2.0.0"
+          assert hacs_metadata["persistent_directory"] == ""
           assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
           version_match = re.fullmatch(r"(\d{4})\.(\d{2})\.(\d{2})-([1-9]\d*)", manifest["version"])
