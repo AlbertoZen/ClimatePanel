@@ -1,6 +1,6 @@
 {
   "domain": "heating_controller_history",
-  "name": "Heating Controller",
+  "name": "ClimatePanel",
   "version": "2.1.2",
   "documentation": "https://www.home-assistant.io/integrations/history/",
   "config_flow": true,
