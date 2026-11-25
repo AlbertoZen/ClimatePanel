@@ -66,6 +66,9 @@ jobs:
           for key in ("name", "documentation", "issue_tracker", "codeowners"):
               assert manifest.get(key), f"manifest.json is missing {key}"
           assert hacs.get("name") == "ClimatePanel"
+          assert hacs.get("filename") == ""
+          assert hacs.get("hacs") == "2.0.0"
+          assert hacs.get("persistent_directory") == ""
           print(f"Validated release {version}")
           PY
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
