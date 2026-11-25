@@ -1,6 +1,7 @@
 name: Publish ClimatePanel release
 
 on:
+  create:
   push:
     branches:
       - "release/**"
@@ -8,8 +9,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish:
+    if: github.event_name == 'push' || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/'))
     name: Publish GitHub release
     runs-on: ubuntu-latest
     steps:
@@ -21,11 +27,12 @@ jobs:
       - name: Validate release version and Marketplace metadata
         id: release
         env:
-          RELEASE_BRANCH: ${{ github.ref_name }}
+          RELEASE_BRANCH: ${{ github.event.ref || github.ref_name }}
         run: |
           set -euo pipefail
+          RELEASE_BRANCH="${RELEASE_BRANCH#refs/heads/}"
           VERSION="${RELEASE_BRANCH#release/}"
-          if [[ ! "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Release branch must be release/X.Y.Z"
             exit 1
           fi
