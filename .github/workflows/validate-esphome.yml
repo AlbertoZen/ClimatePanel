@@ -47,16 +47,16 @@ jobs:
 
       - name: Validate Home Assistant integration files
         run: |
-          python -m compileall -q custom_components/heating_controller_history
+          python -m compileall -q custom_components/climatepanel
           python - <<'PY'
           import json
           import struct
           from pathlib import Path
           import yaml
 
-          component = Path("custom_components/heating_controller_history")
+          component = Path("custom_components/climatepanel")
           manifest = json.loads((component / "manifest.json").read_text())
-          assert manifest["domain"] == "heating_controller_history"
+          assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
           assert manifest["version"] == "2.1.2"
           assert manifest["config_flow"] is True
@@ -76,7 +76,7 @@ jobs:
           assert "get_instance(hass)" in integration
           assert "recorder.async_add_executor_job(query)" in integration
           assert "hass.async_add_executor_job(query)" not in integration
-          assert "heating_controller_history.get_display_data" in firmware
+          assert "climatepanel.get_display_data" in firmware
           assert "climate.nest_thermostat" not in firmware
           assert "${climate_count}" not in firmware
           assert '"icon": str(room.get("icon") or "home")' in integration
