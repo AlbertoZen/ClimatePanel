@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="/config/thermostat-esphome"
+REPO="/config/climatepanel"
 HA_CONFIG="/config"
 ESPHOME_DIR="$HA_CONFIG/esphome"
 SECRETS="$ESPHOME_DIR/secrets.yaml"
@@ -57,7 +57,7 @@ PY
 }
 
 echo "======================================"
-echo "   THERMOSTAT + HOME ASSISTANT CONFIG"
+echo "   CLIMATEPANEL + HOME ASSISTANT CONFIG"
 echo "======================================"
 
 for cmd in git esphome python3 tar diff cmp; do
@@ -116,7 +116,7 @@ manifest = json.loads((component / "manifest.json").read_text())
 if manifest.get("domain") != "heating_controller_history":
     raise SystemExit("Integration manifest domain does not match its folder")
 if manifest.get("config_flow") is not True:
-    raise SystemExit("Heating Controller must expose a config flow")
+    raise SystemExit("ClimatePanel must expose a config flow")
 if "recorder" not in manifest.get("dependencies", []):
     raise SystemExit("Integration must declare its Recorder dependency")
 
@@ -129,7 +129,7 @@ except ImportError:
 
 required = {"get_display_data", "get_climate_history"}
 if not required.issubset(services):
-    raise SystemExit("One or more Heating Controller actions are missing")
+    raise SystemExit("One or more ClimatePanel actions are missing")
 source = (component / "__init__.py").read_text()
 if "async_setup_entry" not in source or "async_register" not in source:
     raise SystemExit("Config-entry service registration was not found")
@@ -299,13 +299,13 @@ echo "======================================"
 echo "       DEPLOYMENT COMPLETED"
 echo "======================================"
 [[ "$FIRMWARE_CHANGED" == true ]] && echo "Firmware YAML: updated (ESPHome validated)" || echo "Firmware YAML: already current"
-[[ "$COMPONENT_CHANGED" == true ]] && echo "Heating Controller integration: updated" || echo "Heating Controller integration: already current"
+[[ "$COMPONENT_CHANGED" == true ]] && echo "ClimatePanel integration: updated" || echo "ClimatePanel integration: already current"
 [[ "$PACKAGE_CHANGED" == true ]] && echo "Legacy YAML package: retired" || echo "Legacy YAML package: not present"
 echo
 if [[ "$BRIDGE_CHANGED" == true ]]; then
-  echo "Restart Home Assistant to load the config-entry-based Heating Controller integration."
+  echo "Restart Home Assistant to load the config-entry-based ClimatePanel integration."
   echo "The existing packages include in configuration.yaml is left unchanged."
-  echo "After restart, add 'Heating Controller' from Settings > Devices & services > Add integration."
+  echo "After restart, add 'ClimatePanel' from Settings > Devices & services > Add integration."
   echo "The first setup form is prefilled with the current three room assignments."
 else
   echo "No Home Assistant integration restart is required."
