@@ -62,7 +62,7 @@ jobs:
           assert hacs_metadata["render_readme"] is True
           assert manifest["domain"] == "climatepanel"
           assert manifest["name"] == "ClimatePanel"
-          assert manifest["version"] == "2.1.3"
+          assert manifest["version"] == "2026.11.25-1"
           assert manifest["documentation"] == "https://github.com/AlbertoZen/ClimatePanel#readme"
           assert manifest["issue_tracker"] == "https://github.com/AlbertoZen/ClimatePanel/issues"
           assert manifest["codeowners"] == ["@AlbertoZen"]
