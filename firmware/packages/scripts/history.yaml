@@ -1,0 +1,217 @@
+script:
+  - id: refresh_history_chart
+    mode: restart
+    then:
+      - logger.log:
+          format: "Requesting last 24 hours of history for %s"
+          args: [ 'id(active_climate_entity).c_str()' ]
+      - lambda: |-
+          // Never expose the previous climate's graph while a new request is pending.
+          if (id(history_chart_obj) != nullptr) {
+            lv_chart_set_all_values(id(history_chart_obj), id(history_temperature_series), LV_CHART_POINT_NONE);
+            lv_chart_set_all_values(id(history_chart_obj), id(history_target_series), LV_CHART_POINT_NONE);
+            lv_chart_refresh(id(history_chart_obj));
+          }
+          if (id(history_activity_bg_container) != nullptr) lv_obj_clean(id(history_activity_bg_container));
+          lv_obj_add_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
+          lv_label_set_text(id(lbl_history_loading), "Loading history...");
+          lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+      - homeassistant.action:
+          action: climatepanel.get_climate_history
+          data:
+            entity_id: !lambda 'return id(active_climate_entity);'
+            period_hours: "24"
+          capture_response: true
+          on_success:
+            - lambda: |-
+                lv_obj_t *chart = id(history_chart_obj);
+                if (chart == nullptr) return;
+
+                JsonObjectConst payload = response["response"].as<JsonObjectConst>();
+                if (payload.isNull()) {
+                  ESP_LOGW("history", "Recorder returned no history data for %s", id(active_climate_entity).c_str());
+                  lv_label_set_text(id(lbl_history_loading), "No history data available");
+                  lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+                  return;
+                }
+
+                JsonArrayConst temperatures = payload["temperatures"].as<JsonArrayConst>();
+                JsonArrayConst targets = payload["targets"].as<JsonArrayConst>();
+                JsonArrayConst activities = payload["activities"].as<JsonArrayConst>();
+                if (temperatures.isNull() || targets.isNull() || activities.isNull()) {
+                  ESP_LOGW("history", "Recorder response was incomplete for %s", id(active_climate_entity).c_str());
+                  lv_label_set_text(id(lbl_history_loading), "History response incomplete");
+                  lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+                  return;
+                }
+
+                const size_t max_points = 288U;
+                size_t count = temperatures.size();
+                if (count > targets.size()) count = targets.size();
+                if (count > activities.size()) count = activities.size();
+                if (count > max_points) count = max_points;
+
+                // First pass: find the actual temperature envelope from both room
+                // and target readings. The graph then uses a tight, rounded range
+                // instead of wasting most of its height on a fixed 0-40 C scale.
+                float data_min = 0.0f;
+                float data_max = 0.0f;
+                bool have_history_range = false;
+                size_t valid_temperature_points = 0;
+                for (size_t point = 0; point < count; point++) {
+                  const float room_temp = temperatures[point].as<float>();
+                  const float target_temp = targets[point].as<float>();
+                  if (std::isfinite(room_temp) && room_temp > -50.0f) {
+                    if (!have_history_range) {
+                      data_min = data_max = room_temp;
+                      have_history_range = true;
+                    } else {
+                      if (room_temp < data_min) data_min = room_temp;
+                      if (room_temp > data_max) data_max = room_temp;
+                    }
+                    valid_temperature_points++;
+                  }
+                  if (std::isfinite(target_temp) && target_temp > -50.0f) {
+                    if (!have_history_range) {
+                      data_min = data_max = target_temp;
+                      have_history_range = true;
+                    } else {
+                      if (target_temp < data_min) data_min = target_temp;
+                      if (target_temp > data_max) data_max = target_temp;
+                    }
+                  }
+                }
+
+                // Use a compact automatic envelope. Eight percent padding (with a
+                // 0.5 C minimum) prevents the curves touching the chart edge without
+                // wasting a large part of the plot on empty temperature range.
+                int axis_min_tenths = 150;
+                int axis_max_tenths = 250;
+                int axis_step_tenths = 25;
+                if (have_history_range) {
+                  const float data_span = fmaxf(0.0f, data_max - data_min);
+                  const float padding = fmaxf(0.5f, data_span * 0.08f);
+                  const float padded_min = data_min - padding;
+                  const float padded_max = data_max + padding;
+                  const float raw_step_tenths = ((padded_max - padded_min) * 10.0f) / 4.0f;
+                  axis_step_tenths = (raw_step_tenths <= 5.0f) ? 5 :
+                                     (raw_step_tenths <= 10.0f) ? 10 :
+                                     (raw_step_tenths <= 20.0f) ? 20 :
+                                     (raw_step_tenths <= 25.0f) ? 25 :
+                                     (raw_step_tenths <= 50.0f) ? 50 :
+                                     (raw_step_tenths <= 100.0f) ? 100 :
+                                     (raw_step_tenths <= 200.0f) ? 200 :
+                                     (raw_step_tenths <= 250.0f) ? 250 :
+                                     (raw_step_tenths <= 500.0f) ? 500 :
+                                     (raw_step_tenths <= 1000.0f) ? 1000 :
+                                     (int)ceilf(raw_step_tenths / 1000.0f) * 1000;
+                  axis_min_tenths = (int)floorf((padded_min * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  axis_max_tenths = (int)ceilf((padded_max * 10.0f) / axis_step_tenths) * axis_step_tenths;
+                  if (axis_max_tenths <= axis_min_tenths)
+                    axis_max_tenths = axis_min_tenths + axis_step_tenths * 4;
+                }
+
+                // Keep the tick labels in static storage because LVGL retains
+                // the text-source pointer after this callback returns.
+                static char temperature_label_storage[16][8];
+                static const char *temperature_tick_labels[17];
+                const int temperature_tick_count =
+                    ((axis_max_tenths - axis_min_tenths) / axis_step_tenths) + 1;
+                for (int tick = 0; tick < temperature_tick_count && tick < 16; tick++) {
+                  const float tick_c =
+                      (axis_min_tenths + tick * axis_step_tenths) / 10.0f;
+                  if (fabsf(tick_c - roundf(tick_c)) < 0.05f) {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%d", (int)lroundf(tick_c));
+                  } else {
+                    snprintf(temperature_label_storage[tick], sizeof(temperature_label_storage[tick]),
+                             "%.1f", tick_c);
+                  }
+                  temperature_tick_labels[tick] = temperature_label_storage[tick];
+                }
+                temperature_tick_labels[temperature_tick_count < 16 ? temperature_tick_count : 16] = nullptr;
+                lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, axis_min_tenths, axis_max_tenths);
+                if (id(history_scale_temperature) != nullptr) {
+                  lv_scale_set_range(id(history_scale_temperature), axis_min_tenths, axis_max_tenths);
+                  lv_scale_set_total_tick_count(id(history_scale_temperature), temperature_tick_count);
+                  lv_scale_set_major_tick_every(id(history_scale_temperature), 1);
+                  lv_scale_set_text_src(id(history_scale_temperature), temperature_tick_labels);
+                }
+                lv_chart_set_div_line_count(chart, temperature_tick_count, 5);
+
+                // Keep only the room and target temperature curves. HVAC activity
+                // is represented as translucent time bands behind the plot instead
+                // of a second Y-axis or a row of categorical dots.
+                lv_chart_set_all_values(chart, id(history_temperature_series), LV_CHART_POINT_NONE);
+                lv_chart_set_all_values(chart, id(history_target_series), LV_CHART_POINT_NONE);
+
+                for (size_t point = 0; point < max_points; point++) {
+                  if (point >= count) continue;
+                  const float room_temp = temperatures[point].as<float>();
+                  const float target_temp = targets[point].as<float>();
+                  const int32_t room_value = (std::isfinite(room_temp) && room_temp > -50.0f)
+                      ? (int32_t) lroundf(room_temp * 10.0f) : LV_CHART_POINT_NONE;
+                  const int32_t target_value = (std::isfinite(target_temp) && target_temp > -50.0f)
+                      ? (int32_t) lroundf(target_temp * 10.0f) : LV_CHART_POINT_NONE;
+                  lv_chart_set_series_value_by_id(chart, id(history_temperature_series), point, room_value);
+                  lv_chart_set_series_value_by_id(chart, id(history_target_series), point, target_value);
+                }
+
+                // Rebuild the background activity bands. Adjacent samples with
+                // the same HVAC action are merged into one rectangle to keep the
+                // number of LVGL objects low. The background container was created
+                // before the chart, so the chart's grid and temperature lines draw
+                // cleanly above these translucent regions.
+                lv_obj_t *activity_bg = id(history_activity_bg_container);
+                if (activity_bg != nullptr) {
+                  lv_obj_clean(activity_bg);
+                  const int32_t plot_width = lv_obj_get_width(activity_bg);
+                  const int32_t plot_height = lv_obj_get_height(activity_bg);
+                  const bool dark_theme = id(display_dark_mode).state;
+                  auto activity_color = [&](int action) -> lv_color_t {
+                    if (action == 1) return lv_color_hex(dark_theme ? 0xFF805C : 0xD85B32); // heating
+                    if (action == 2) return lv_color_hex(dark_theme ? 0x56B7F2 : 0x0878B5); // cooling
+                    return lv_color_hex(dark_theme ? 0xB89AF2 : 0x7850A8);                 // fan/dry
+                  };
+                  if (count > 0 && plot_width > 0 && plot_height > 0) {
+                    int run_action = activities[0].as<int>();
+                    size_t run_start = 0;
+                    for (size_t point = 1; point <= count; point++) {
+                      const int next_action = (point < count) ? activities[point].as<int>() : -1;
+                      if (next_action != run_action) {
+                        if (run_action >= 1 && run_action <= 3) {
+                          const int32_t x1 = (int32_t)((run_start * (size_t)plot_width) / max_points);
+                          const int32_t x2 = (int32_t)((point * (size_t)plot_width) / max_points);
+                          const int32_t band_width = (x2 > x1) ? (x2 - x1) : 1;
+                          lv_obj_t *band = lv_obj_create(activity_bg);
+                          lv_obj_set_pos(band, x1, 0);
+                          lv_obj_set_size(band, band_width, plot_height);
+                          lv_obj_set_style_bg_color(band, activity_color(run_action), LV_PART_MAIN);
+                          lv_obj_set_style_bg_opa(band, LV_OPA_20, LV_PART_MAIN);
+                          lv_obj_set_style_border_width(band, 0, LV_PART_MAIN);
+                          lv_obj_set_style_radius(band, 0, LV_PART_MAIN);
+                          lv_obj_set_style_pad_all(band, 0, LV_PART_MAIN);
+                          lv_obj_clear_flag(band, LV_OBJ_FLAG_SCROLLABLE);
+                          lv_obj_clear_flag(band, LV_OBJ_FLAG_CLICKABLE);
+                        }
+                        run_action = next_action;
+                        run_start = point;
+                      }
+                    }
+                  }
+                }
+
+                const char *status_text = payload["status_text"] | "Home Assistant Recorder history loaded";
+                ESP_LOGI("history", "%s: %u temperature samples for %s",
+                         status_text, (unsigned)valid_temperature_points,
+                         id(active_climate_entity).c_str());
+                lv_chart_refresh(chart);
+                // Show the chart immediately when the Recorder response is ready.
+                lv_obj_clear_flag(id(history_chart_container), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+          on_error:
+            - lambda: |-
+                lv_label_set_text(id(lbl_history_loading), "History unavailable");
+                lv_obj_clear_flag(id(lbl_history_loading), LV_OBJ_FLAG_HIDDEN);
+            - logger.log: "Home Assistant Recorder history request failed"
+            - logger.log: "History unavailable - check Native API action permissions and Recorder"
