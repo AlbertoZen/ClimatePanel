@@ -1223,10 +1223,20 @@ script:
           text: !lambda |-
             const std::string action = id(active_hvac_action);
             if (action == "heating") return std::string("Heating");
+            if (action == "preheating") return std::string("Preheating");
             if (action == "cooling") return std::string("Cooling");
             if (action == "idle") return std::string("Idle");
             if (action == "drying") return std::string("Drying");
             if (action == "fan") return std::string("Fan");
+            if (action == "defrosting") return std::string("Defrosting");
+            if (action == "off") return std::string("Off");
+            const std::string mode = id(active_hvac_mode);
+            if (mode == "heat") return std::string("Heat mode");
+            if (mode == "cool") return std::string("Cool mode");
+            if (mode == "heat_cool") return std::string("Heat/cool mode");
+            if (mode == "auto") return std::string("Auto mode");
+            if (mode == "dry") return std::string("Dry mode");
+            if (mode == "fan_only") return std::string("Fan mode");
             return std::string("Off");
       - lvgl.widget.update:
           id: btn_mode_off
@@ -1551,6 +1561,15 @@ script:
               !isnan(id(active_target_temp_high));
           const float setpoint = id(active_target_tenths) / 10.0f;
           const std::string action = id(active_hvac_action);
+          const std::string mode = id(active_hvac_mode);
+          // HVAC action is authoritative; fall back to the selected mode only
+          // when the integration does not publish an action.
+          const std::string visual_action = action.empty()
+              ? (mode == "heat" ? "heating" :
+                 mode == "cool" ? "cooling" :
+                 mode == "dry" ? "drying" :
+                 mode == "fan_only" ? "fan" : "")
+              : action;
 
           lv_color_t indicator_color;
           if (dual_valid) {
@@ -1558,12 +1577,14 @@ script:
                 id(edit_high_setpoint)
                     ? (dark ? 0x58B9F7 : 0x0077A8)
                     : (dark ? 0xFF8A65 : 0xB54A25));
-          } else if (action == "heating") {
+          } else if (visual_action == "heating" || visual_action == "preheating") {
             indicator_color = lv_color_hex(dark ? 0xFF8A65 : 0xB54A25);
-          } else if (action == "cooling") {
+          } else if (visual_action == "cooling") {
             indicator_color = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
-          } else if (action == "idle") {
+          } else if (visual_action == "idle") {
             indicator_color = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator_color = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
           } else {
             indicator_color = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
           }
@@ -1693,19 +1714,30 @@ script:
           lv_obj_set_style_bg_color(id(btn_step_down), selected_surface, pressed_selector);
           lv_obj_set_style_bg_color(id(btn_step_up), selected_surface, pressed_selector);
 
-          // HVAC activity chip retains semantic colouring, independent of button fills.
+          // Actual HVAC action takes priority. If unavailable, use the selected
+          // mode for colour only; the label still says e.g. "Heat mode".
           const std::string current_action = id(active_hvac_action);
+          const std::string current_mode = id(active_hvac_mode);
+          const std::string visual_action = current_action.empty()
+              ? (current_mode == "heat" ? "heating" :
+                 current_mode == "cool" ? "cooling" :
+                 current_mode == "dry" ? "drying" :
+                 current_mode == "fan_only" ? "fan" : "")
+              : current_action;
           lv_color_t chip_bg = surface;
           lv_color_t chip_text = secondary;
-          if (current_action == "heating") {
+          if (visual_action == "heating" || visual_action == "preheating") {
             chip_bg = lv_color_hex(dark ? 0x5C250E : 0xFCE5DB);
             chip_text = lv_color_hex(dark ? 0xFFB59A : 0x963C15);
-          } else if (current_action == "cooling") {
+          } else if (visual_action == "cooling") {
             chip_bg = lv_color_hex(dark ? 0x003549 : 0xD8F1FF);
             chip_text = lv_color_hex(dark ? 0x8AD5FF : 0x005B81);
-          } else if (current_action == "idle") {
+          } else if (visual_action == "idle") {
             chip_bg = lv_color_hex(dark ? 0x113828 : 0xD8F2E3);
             chip_text = lv_color_hex(dark ? 0xA6F2D1 : 0x17613F);
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            chip_bg = lv_color_hex(dark ? 0x302542 : 0xE9DDF8);
+            chip_text = lv_color_hex(dark ? 0xD4C0F5 : 0x65448E);
           }
           lv_obj_set_style_bg_color(id(chip_hvac_state), chip_bg, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_hvac_state), chip_text, LV_PART_MAIN);
@@ -1802,15 +1834,17 @@ script:
           style_history_scale(id(history_scale_temperature));
           style_history_scale(id(history_scale_time));
 
-          // Subtle inner-dial tint follows active HVAC operation; the status chip is unchanged.
+          // Subtle inner-dial tint follows actual action, or selected mode when
+          // the integration does not expose hvac_action.
           lv_color_t inner_tint = lv_color_hex(dark ? 0xFF8A65 : 0xD85B32);
-          if (current_action == "cooling") {
+          if (visual_action == "cooling") {
             inner_tint = lv_color_hex(dark ? 0x58B9F7 : 0x1686B8);
-          } else if (current_action == "fan" || current_action == "drying") {
+          } else if (visual_action == "fan" || visual_action == "drying") {
             inner_tint = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
           }
-          const bool hvac_active = current_action == "heating" || current_action == "cooling" ||
-                                  current_action == "fan" || current_action == "drying";
+          const bool hvac_active = visual_action == "heating" || visual_action == "preheating" ||
+                                   visual_action == "cooling" || visual_action == "fan" ||
+                                   visual_action == "drying";
           lv_obj_set_style_bg_color(id(climate_arc_inner_tint), inner_tint, LV_PART_MAIN);
           // Blend the tint vertically into the actual page background so the
           // lower edge disappears into the open end of the thermostat arc.
@@ -1823,11 +1857,13 @@ script:
           const bool dual_valid = !isnan(id(active_target_temp_low)) && !isnan(id(active_target_temp_high));
           if (dual_valid) {
             indicator = lv_color_hex(id(edit_high_setpoint) ? (dark ? 0x58B9F7 : 0x0077A8) : (dark ? 0xFF8A65 : 0xB54A25));
-          } else if (current_action == "cooling") {
+          } else if (visual_action == "cooling") {
             indicator = lv_color_hex(dark ? 0x58B9F7 : 0x0077A8);
-          } else if (current_action == "idle") {
+          } else if (visual_action == "idle") {
             indicator = lv_color_hex(dark ? 0x66BB6A : 0x27834B);
-          } else if (current_action != "heating") {
+          } else if (visual_action == "fan" || visual_action == "drying") {
+            indicator = lv_color_hex(dark ? 0xB89AF2 : 0x7850A8);
+          } else if (visual_action != "heating" && visual_action != "preheating") {
             indicator = lv_color_hex(dark ? 0x444752 : 0xC6C8D2);
           }
           lv_obj_set_style_arc_color(id(climate_arc), indicator, LV_PART_INDICATOR);
@@ -2987,14 +3023,14 @@ lvgl:
                   border_width: 0
                   pad_top: 6
                   pad_bottom: 6
-                  pad_left: 8
-                  pad_right: 8
+                  pad_left: 6
+                  pad_right: 6
                   layout:
                     type: flex
                     flex_flow: row
                     flex_align_main: center
                     flex_align_cross: center
-                    pad_column: 8
+                    pad_column: 4
                   widgets:
                     - button:
                         id: btn_mode_off
