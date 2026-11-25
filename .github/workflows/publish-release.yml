@@ -22,6 +22,7 @@ jobs:
         id: release
         env:
           RELEASE_BRANCH: ${{ github.event.ref || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RELEASE_BRANCH="${RELEASE_BRANCH#refs/heads/}"
@@ -33,6 +34,7 @@ jobs:
           python - "$VERSION" <<'PY'
           import json
           import re
+          import subprocess
           import sys
           from datetime import date
           from pathlib import Path
@@ -40,7 +42,22 @@ jobs:
           version = sys.argv[1]
           match = re.fullmatch(r"(\d{4})\.(\d{2})\.(\d{2})-([1-9]\d*)", version)
           assert match, f"Invalid date release version: {version}"
+          release_date = f"{match.group(1)}.{match.group(2)}.{match.group(3)}"
           date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+          revision = int(match.group(4))
+          existing_tags = subprocess.run(
+              ["gh", "release", "list", "--limit", "100", "--json", "tagName", "--jq", ".[].tagName"],
+              check=True, capture_output=True, text=True,
+          ).stdout.splitlines()
+          revisions = [
+              int(existing.group(1))
+              for tag in existing_tags
+              if (existing := re.fullmatch(re.escape(release_date) + r"-([1-9]\\d*)", tag))
+          ]
+          expected_revision = max(revisions, default=0) + 1
+          assert revision == expected_revision, (
+              f"Expected {release_date}-{expected_revision}, got {version}"
+          )
           manifest = json.loads(Path("custom_components/climatepanel/manifest.json").read_text())
           hacs = json.loads(Path("hacs.json").read_text())
 
