@@ -1,0 +1,336 @@
+script:
+  - id: refresh_display_data
+    mode: single
+    then:
+      - homeassistant.action:
+          action: climatepanel.get_display_data
+          capture_response: true
+          on_success:
+            - lambda: |-
+                const JsonObjectConst payload = response["response"].as<JsonObjectConst>();
+                if (payload.isNull()) {
+                  ESP_LOGW("climate_config", "Home Assistant returned an empty display configuration");
+                  return;
+                }
+                const JsonArrayConst rooms = payload["rooms"].as<JsonArrayConst>();
+                const int room_count = payload["room_count"].as<int>();
+                if (room_count < 2 || room_count > 4 || rooms.size() < static_cast<size_t>(room_count)) {
+                  ESP_LOGW("climate_config", "Invalid room configuration received from Home Assistant");
+                  return;
+                }
+
+                id(configured_climate_count) = room_count;
+                if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
+                  id(active_climate_index) = 0;
+                }
+
+                auto read_number = [](JsonObjectConst room, const char *key) -> float {
+                  const JsonVariantConst value = room[key];
+                  return value.isNull() ? NAN : value.as<float>();
+                };
+
+                // The clock screen always follows the Master room, independently
+                // of which room is currently selected on the thermostat.
+                const JsonObjectConst master = rooms[0].as<JsonObjectConst>();
+                id(master_current_temp_dynamic) = read_number(master, "current_temperature");
+                id(master_humidity_dynamic) = read_number(master, "humidity");
+                id(outside_temperature_dynamic) = payload["outside_temperature"].isNull()
+                    ? NAN : payload["outside_temperature"].as<float>();
+
+                const JsonObjectConst room = rooms[id(active_climate_index)].as<JsonObjectConst>();
+                id(active_climate_entity) = room["entity_id"].as<std::string>();
+                id(active_climate_name) = room["name"].as<std::string>();
+                id(active_room_icon) = room["icon"].as<std::string>();
+                if (id(active_room_icon).empty()) id(active_room_icon) = "home";
+                if (id(active_climate_name).empty()) {
+                  id(active_climate_name) = "Room " + std::to_string(id(active_climate_index) + 1);
+                }
+                id(active_current_temp) = read_number(room, "current_temperature");
+                id(active_humidity) = read_number(room, "humidity");
+                ESP_LOGI("setpoint_diag",
+                         "Display data: entity=%s target_temperature=%s (adjusting=%s)",
+                         id(active_climate_entity).c_str(),
+                         room["target_temperature"].isNull()
+                           ? "null" : std::to_string(room["target_temperature"].as<float>()).c_str(),
+                         id(setpoint_adjusting) ? "true" : "false");
+                const float reported_target = read_number(room, "target_temperature");
+                // Keep the optimistic target until HA's live climate state confirms it.
+                if (id(setpoint_adjusting)) {
+                  if (std::isfinite(reported_target) &&
+                      (int)round(reported_target * 10.0f) == id(setpoint_expected_tenths)) {
+                    id(active_target_temperature) = reported_target;
+                    id(active_target_temp_low) = read_number(room, "target_temp_low");
+                    id(active_target_temp_high) = read_number(room, "target_temp_high");
+                    id(setpoint_adjusting) = false;
+                    ESP_LOGI("setpoint_diag", "Home Assistant state confirmed final target: %.1f", reported_target);
+                  } else {
+                    ESP_LOGI("setpoint_diag", "Waiting for climate state: expected=%.1f reported=%s",
+                             id(setpoint_expected_tenths) / 10.0f,
+                             std::isfinite(reported_target) ? std::to_string(reported_target).c_str() : "unavailable");
+                  }
+                } else {
+                  id(active_target_temperature) = reported_target;
+                  id(active_target_temp_low) = read_number(room, "target_temp_low");
+                  id(active_target_temp_high) = read_number(room, "target_temp_high");
+                }
+                id(active_hvac_mode) = room["hvac_mode"].as<std::string>();
+                id(active_hvac_action) = room["hvac_action"].as<std::string>();
+                id(active_supported_modes).clear();
+                const JsonArrayConst modes = room["supported_modes"].as<JsonArrayConst>();
+                for (JsonVariantConst mode : modes) {
+                  const char *mode_name = mode.as<const char *>();
+                  if (mode_name == nullptr) continue;
+                  if (!id(active_supported_modes).empty()) id(active_supported_modes) += ",";
+                  id(active_supported_modes) += std::string("\"") + mode_name + "\"";
+                }
+            - script.execute: sync_active_climate
+            - script.wait: sync_active_climate
+          on_error:
+            - logger.log:
+                level: WARN
+                format: "Could not retrieve climate configuration/data from Home Assistant"
+  - id: sync_active_climate
+    mode: restart
+    then:
+      - lambda: |-
+          const int room_count = id(configured_climate_count);
+          if (room_count < 2 || room_count > 4) return;
+          // Keep a restored selection valid if the room count changes in Home Assistant.
+          if (id(active_climate_index) < 0 || id(active_climate_index) >= room_count) {
+            id(active_climate_index) = 0;
+          }
+          // Data readiness controls the placeholder text immediately, but the
+          // loading modal is kept visible until all climate widgets finish updating.
+          id(climate_data_ready) =
+              std::isfinite(id(active_current_temp)) &&
+              (std::isfinite(id(active_target_temperature)) ||
+               (std::isfinite(id(active_target_temp_low)) &&
+                std::isfinite(id(active_target_temp_high))));
+          auto has_mode = [&](const char *mode) {
+            const std::string single = std::string("'") + mode + "'";
+            const std::string double_q = std::string("\"") + mode + "\"";
+            return id(active_supported_modes).find(single) != std::string::npos ||
+                   id(active_supported_modes).find(double_q) != std::string::npos;
+          };
+          auto set_visible = [](lv_obj_t *obj, bool visible) {
+            if (visible) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+          };
+          set_visible(id(btn_mode_off),       has_mode("off"));
+          set_visible(id(btn_mode_heat),      has_mode("heat"));
+          set_visible(id(btn_mode_cool),      has_mode("cool"));
+          set_visible(id(btn_mode_heat_cool), has_mode("heat_cool"));
+          set_visible(id(btn_mode_auto),      has_mode("auto"));
+          set_visible(id(btn_mode_dry),       has_mode("dry"));
+          set_visible(id(btn_mode_fan_only),  has_mode("fan_only"));
+          // Linear navigation follows the configured number of climate slots.
+          set_visible(id(btn_climate_prev), id(active_climate_index) > 0);
+          set_visible(id(btn_climate_next), id(active_climate_index) < room_count - 1);
+          set_visible(id(img_room_icon_home), id(active_room_icon) == "home");
+          set_visible(id(img_room_icon_sofa), id(active_room_icon) == "sofa");
+          set_visible(id(img_room_icon_bed), id(active_room_icon) == "bed");
+          set_visible(id(img_room_icon_chef_hat), id(active_room_icon) == "chef-hat");
+          set_visible(id(img_room_icon_thermostat), id(active_room_icon) == "thermostat");
+          set_visible(id(img_room_icon_fan), id(active_room_icon) == "fan");
+          set_visible(id(img_room_icon_radiator), id(active_room_icon) == "radiator");
+          set_visible(id(img_room_icon_fire), id(active_room_icon) == "fire");
+          set_visible(id(img_room_icon_snowflake), id(active_room_icon) == "snowflake");
+          set_visible(id(img_room_icon_desk), id(active_room_icon) == "desk");
+          set_visible(id(img_room_icon_server), id(active_room_icon) == "server");
+          set_visible(id(img_room_icon_pool), id(active_room_icon) == "pool");
+          set_visible(id(img_room_icon_garage), id(active_room_icon) == "garage");
+          set_visible(id(img_room_icon_air_conditioner), id(active_room_icon) == "air-conditioner");
+      - lvgl.label.update:
+          id: lbl_room_title
+          text: !lambda 'return id(active_climate_name);'
+      - lvgl.label.update:
+          id: lbl_hvac_state
+          text: !lambda |-
+            const std::string action = id(active_hvac_action);
+            if (action == "heating") return std::string("Heating");
+            if (action == "preheating") return std::string("Preheating");
+            if (action == "cooling") return std::string("Cooling");
+            if (action == "idle") return std::string("Idle");
+            if (action == "drying") return std::string("Drying");
+            if (action == "fan") return std::string("Fan");
+            if (action == "defrosting") return std::string("Defrosting");
+            if (action == "off") return std::string("Off");
+            const std::string mode = id(active_hvac_mode);
+            if (mode == "heat") return std::string("Heat mode");
+            if (mode == "cool") return std::string("Cool mode");
+            if (mode == "heat_cool") return std::string("Heat/cool mode");
+            if (mode == "auto") return std::string("Auto mode");
+            if (mode == "dry") return std::string("Dry mode");
+            if (mode == "fan_only") return std::string("Fan mode");
+            return std::string("Off");
+      - lvgl.widget.update:
+          id: btn_mode_off
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "off";'
+      - lvgl.widget.update:
+          id: btn_mode_heat
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "heat";'
+      - lvgl.widget.update:
+          id: btn_mode_cool
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "cool";'
+      - lvgl.widget.update:
+          id: btn_mode_heat_cool
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "heat_cool";'
+      - lvgl.widget.update:
+          id: btn_mode_auto
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "auto";'
+      - lvgl.widget.update:
+          id: btn_mode_dry
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "dry";'
+      - lvgl.widget.update:
+          id: btn_mode_fan_only
+          state:
+            checked: !lambda 'return id(active_hvac_mode) == "fan_only";'
+      - script.execute: sync_setpoint_ui
+      - script.wait: sync_setpoint_ui
+      - script.execute: sync_env_label
+      - script.wait: sync_env_label
+      - script.execute: apply_theme
+      - script.wait: apply_theme
+      - script.execute: update_current_temp_dot
+      - script.wait: update_current_temp_dot
+      - lambda: |-
+          // Dismiss the modal only after the room title, modes, setpoint,
+          // temperature/humidity label, theme and current-temperature marker
+          // have all been synchronised.
+          if (id(climate_data_ready)) {
+            if (id(climate_loading_overlay) != nullptr)
+              lv_obj_add_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            if (id(climate_loading_overlay) != nullptr) {
+              lv_obj_clear_flag(id(climate_loading_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_move_foreground(id(climate_loading_overlay));
+            }
+            if (id(climate_loading_spinner) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_spinner), LV_OBJ_FLAG_HIDDEN);
+            if (id(climate_loading_label) != nullptr)
+              lv_obj_clear_flag(id(climate_loading_label), LV_OBJ_FLAG_HIDDEN);
+          }
+  - id: select_previous_climate
+    mode: single
+    then:
+      - script.execute:
+          id: navigate_climate
+          direction: -1
+  - id: select_next_climate
+    mode: single
+    then:
+      - script.execute:
+          id: navigate_climate
+          direction: 1
+  - id: cleanup_climate_snapshots
+    mode: single
+    then:
+      - lambda: |-
+          auto release_snapshot = [](lv_obj_t *img) {
+            const void *src = lv_image_get_src(img);
+            // Detach the draw buffer before freeing it, as required by LVGL 9.
+            lv_image_set_src(img, static_cast<const void *>(nullptr));
+            if (src != nullptr) {
+              lv_draw_buf_destroy((lv_draw_buf_t *)src);
+            }
+            lv_obj_set_style_translate_x(img, 0, LV_PART_MAIN);
+            lv_obj_set_pos(img, 0, 0);
+            lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+          };
+          release_snapshot(id(img_climate_snapshot_out));
+          release_snapshot(id(img_climate_snapshot_in));
+          lv_obj_set_style_translate_x(id(thermostat_content), 0, LV_PART_MAIN);
+          lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+  - id: finish_climate_snapshot_transition
+    mode: single
+    then:
+      - script.execute: cleanup_climate_snapshots
+      - script.wait: cleanup_climate_snapshots
+      - lambda: 'id(climate_navigation_busy) = false;'
+  - id: navigate_climate
+    mode: single
+    parameters:
+      direction: int
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const int room_count = id(configured_climate_count);
+              const int next_index = id(active_climate_index) + direction;
+              return !id(climate_navigation_busy) && room_count >= 2 &&
+                     next_index >= 0 && next_index < room_count;
+          then:
+            - lambda: 'id(climate_navigation_busy) = true;'
+            - script.execute: cleanup_climate_snapshots
+            - script.wait: cleanup_climate_snapshots
+            - lambda: |-
+                id(climate_snapshot_capture_ok) = false;
+                lv_obj_update_layout(id(thermostat_content));
+                lv_draw_buf_t *outgoing = lv_snapshot_take(
+                    id(thermostat_content), LV_COLOR_FORMAT_RGB565);
+                if (outgoing != nullptr) {
+                  lv_image_set_src(id(img_climate_snapshot_out), outgoing);
+                  lv_obj_set_pos(id(img_climate_snapshot_out), 0, 0);
+                  lv_obj_set_style_translate_x(id(img_climate_snapshot_out), 0, LV_PART_MAIN);
+                  lv_obj_clear_flag(id(img_climate_snapshot_out), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                  id(climate_snapshot_capture_ok) = true;
+                } else {
+                  ESP_LOGW("climate_slide", "Outgoing snapshot allocation failed; switching without animation");
+                }
+            - if:
+                condition:
+                  lambda: 'return id(climate_snapshot_capture_ok);'
+                then:
+                  - lambda: 'id(active_climate_index) += direction;'
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
+                  - lambda: |-
+                      // Temporarily reveal the newly-updated shared view for capture.
+                      lv_obj_clear_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                      lv_obj_update_layout(id(thermostat_content));
+                      lv_draw_buf_t *incoming = lv_snapshot_take(
+                          id(thermostat_content), LV_COLOR_FORMAT_RGB565);
+                      if (incoming != nullptr) {
+                        lv_image_set_src(id(img_climate_snapshot_in), incoming);
+                        // Keep the image's base position at the screen origin.
+                        // The animation's translate_x provides the off-screen start offset.
+                        lv_obj_set_pos(id(img_climate_snapshot_in), 0, 0);
+                        lv_obj_set_style_translate_x(id(img_climate_snapshot_in), 0, LV_PART_MAIN);
+                        lv_obj_clear_flag(id(img_climate_snapshot_in), LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_add_flag(id(thermostat_content), LV_OBJ_FLAG_HIDDEN);
+                        id(climate_snapshot_capture_ok) = true;
+                      } else {
+                        // Leave the live new climate visible; cleanup releases the outgoing image.
+                        id(climate_snapshot_capture_ok) = false;
+                        ESP_LOGW("climate_slide", "Incoming snapshot allocation failed; switching without animation");
+                      }
+                  - if:
+                      condition:
+                        lambda: 'return id(climate_snapshot_capture_ok);'
+                      then:
+                        - if:
+                            condition:
+                              lambda: 'return direction > 0;'
+                            then:
+                              - lvgl.animation.start: climate_snapshot_out_left
+                              - lvgl.animation.start: climate_snapshot_in_from_right
+                            else:
+                              - lvgl.animation.start: climate_snapshot_out_right
+                              - lvgl.animation.start: climate_snapshot_in_from_left
+                      else:
+                        - script.execute: cleanup_climate_snapshots
+                        - script.wait: cleanup_climate_snapshots
+                        - lambda: 'id(climate_navigation_busy) = false;'
+                else:
+                  # No outgoing snapshot available: retain a functional instant switch.
+                  - lambda: 'id(active_climate_index) += direction;'
+                  - script.execute: refresh_display_data
+                  - script.wait: refresh_display_data
+                  - lambda: 'id(climate_navigation_busy) = false;'
