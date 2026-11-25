@@ -1,0 +1,72 @@
+name: Publish ClimatePanel release
+
+on:
+  push:
+    branches:
+      - "release/**"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Validate release version and Marketplace metadata
+        id: release
+        env:
+          RELEASE_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_BRANCH#release/}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+            echo "::error::Release branch must be release/X.Y.Z"
+            exit 1
+          fi
+          python - "$VERSION" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          manifest = json.loads(Path("custom_components/climatepanel/manifest.json").read_text())
+          hacs = json.loads(Path("hacs.json").read_text())
+
+          assert manifest.get("domain") == "climatepanel"
+          assert manifest.get("version") == version, (manifest.get("version"), version)
+          for key in ("name", "documentation", "issue_tracker", "codeowners"):
+              assert manifest.get(key), f"manifest.json is missing {key}"
+          assert hacs.get("name") == "ClimatePanel"
+          print(f"Validated release {version}")
+          PY
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ClimatePanel ${{ steps.release.outputs.tag }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Highlights
+
+            - Renamed the Home Assistant integration domain to `climatepanel`, including its service/action names and ESPHome firmware references.
+            - Added Home Assistant Marketplace/HACS metadata and completed the integration manifest required fields.
+            - Retained configurable two-to-four-room setup, per-room icons, optional outdoor temperature and Recorder-backed climate history.
+            - Includes the current thermostat display firmware and its setpoint interaction, screensaver and diagnostics improvements.
+
+            ## Breaking change
+
+            The integration domain changed from `heating_controller_history` to `climatepanel`. Existing installations must remove the previous integration and add ClimatePanel as a new integration entry. Automatic migration is not provided.
+
+            ## Installation
+
+            Install the ClimatePanel integration from the Home Assistant Marketplace using this repository, then restart Home Assistant. Deploy and flash the ESPHome firmware separately using the instructions in the README.
