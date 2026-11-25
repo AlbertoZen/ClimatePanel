@@ -1,5 +1,7 @@
 {
-  "homeassistant": "2026.11.0",
   "name": "ClimatePanel",
-  "render_readme": true
+  "filename": "",
+  "hacs": "2.0.0",
+  "persistent_directory": "",
+  "homeassistant": "2026.11.0"
 }
